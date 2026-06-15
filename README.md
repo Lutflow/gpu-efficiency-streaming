@@ -64,6 +64,20 @@ documented honestly — it is not deployed because `AI_COMPLETE` is non-determin
 it over the changelog streams this pipeline produces. A production agent would use Confluent
 **Streaming Agents** for that step.
 
+## Cost & region
+
+This demo provisions **billable** Confluent Cloud resources: a **Standard** Kafka cluster, a Flink
+compute pool, and three Amazon S3 sink connectors. They bill for as long as they run, and the built-in
+Flink ML functions (`ML_DETECT_ANOMALIES`, `ML_FORECAST`) are billed in **CFUs** as part of compute-pool
+usage. **Run [`uv run destroy`](#run-it-two-commands) as soon as you're done** to stop the meter. See
+[Confluent Cloud pricing](https://www.confluent.io/confluent-cloud/pricing/) and
+[Flink billing](https://docs.confluent.io/cloud/current/flink/concepts/billing.html).
+
+A **Standard** cluster is required — Basic does not support the topic-scoped RBAC this project uses
+([cluster types](https://docs.confluent.io/cloud/current/clusters/cluster-types.html)). Deploy in a
+cloud/region where Flink and the built-in ML functions are available; this was tested on **AWS
+`us-east-1`**.
+
 ## Run it (two commands)
 
 Prerequisites: a [Confluent Cloud](https://confluent.cloud) account, [Terraform](https://www.terraform.io/) ≥ 1.6,
@@ -137,6 +151,7 @@ src/gpu_efficiency_streaming/
   produce.py                    # `uv run produce` — structured-signal telemetry producer (the source)
   deploy.py / destroy.py        # `uv run deploy` / `uv run destroy`
 flink/                          # the SQL pipeline (single source of truth)
+  README.md                     #   DAG walkthrough + per-statement reference
   01a_add_event_time.sql        #   computed event_time column (TO_TIMESTAMP_LTZ)
   01b_set_watermark.sql         #   event-time watermark on event_time
   02_detect_anomalies.sql       #   TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA + STL)
