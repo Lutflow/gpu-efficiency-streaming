@@ -26,7 +26,7 @@ SELECT
   ML_FORECAST(
     avg_gpu_util,
     window_time,
-    JSON_OBJECT('minTrainingSize' VALUE 50, 'enableStl' VALUE TRUE, 'horizon' VALUE 5)
+    JSON_OBJECT('minTrainingSize' VALUE 36, 'enableStl' VALUE TRUE, 'm' VALUE 12, 'horizon' VALUE 1)
   ) OVER (
     ORDER BY window_time
     RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW

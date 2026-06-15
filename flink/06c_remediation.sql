@@ -1,29 +1,21 @@
 -- 06c_remediation.sql
--- Agentic remediation: for each flagged efficiency anomaly, ask Gemini (in-Flink, via the
--- built-in AI_COMPLETE model-inference function) for ONE concise recommendation. The pipeline
--- RECOMMENDS; it does not act/enforce. Only the generic anomaly row is sent to the LLM.
+-- Agentic remediation: for each unified, deduplicated efficiency event, ask Gemini (in-Flink,
+-- via the built-in AI_COMPLETE model-inference function) for ONE concise recommendation. The
+-- pipeline RECOMMENDS; it does not act or enforce. Only the generic event summary is sent to the
+-- LLM -- no proprietary data.
 --
--- [VERIFY-ISOLATED] Confirm the AI_COMPLETE / LATERAL TABLE invocation shape against a single
--- test row before wiring into Terraform; only wire if the statement reaches RUNNING.
+-- Runs over gpu_efficiency_events (already deduplicated to append-only) so the LLM is invoked
+-- once per event -- safe for Gemini free-tier rate limits.
+--
+-- [VERIFY-ISOLATED] Confirm the AI_COMPLETE / LATERAL TABLE shape on 1-2 rows and that the
+-- statement stays RUNNING (and volume is within rate limits) before wiring into Terraform.
 CREATE TABLE gpu_efficiency_remediations
   DISTRIBUTED BY (`deployment_id`) INTO 1 BUCKETS
 AS
 SELECT
-  a.deployment_id,
-  a.window_start,
-  a.efficiency_flag,
-  a.avg_gpu_util,
+  e.deployment_id,
+  e.window_start,
+  e.event_type,
   r.recommendation
-FROM gpu_efficiency_alerts AS a,
-  LATERAL TABLE(
-    AI_COMPLETE(
-      'remediation_model',
-      'GPU efficiency anomaly.'
-        || ' deployment=' || a.deployment_id
-        || ' flag=' || a.efficiency_flag
-        || ' avg_util=' || CAST(a.avg_gpu_util AS STRING)
-        || ' expected_util=' || CAST(a.expected_util AS STRING)
-        || ' lower_bound=' || CAST(a.lower_bound AS STRING)
-        || ' upper_bound=' || CAST(a.upper_bound AS STRING)
-    )
-  ) AS r(recommendation);
+FROM gpu_efficiency_events AS e,
+  LATERAL TABLE(AI_COMPLETE('remediation_model', e.summary)) AS r(recommendation);

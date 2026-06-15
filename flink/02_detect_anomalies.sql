@@ -45,6 +45,7 @@ SELECT
     JSON_OBJECT(
       'minTrainingSize'      VALUE 30,
       'enableStl'            VALUE true,
+      'm'                    VALUE 12,
       'confidencePercentage' VALUE 95.0
     )
   ) OVER (

@@ -57,11 +57,11 @@ class SignalState:
         self.tick = 0  # logical tick; drives the diurnal phase (independent of wall clock)
 
     def next_record(self, t0: float, interval_s: float) -> dict:
-        now = time.time()
-        # Phase advances by simulated elapsed time (tick * interval), so the diurnal
-        # cycle is deterministic and observable regardless of wall-clock timing.
+        # Lock BOTH event time and the diurnal phase to one simulated clock, so the period
+        # does not drift in event time (drift would break STL and the seasonal period m).
         elapsed = self.tick * interval_s
         self.tick += 1
+        sim_time = t0 + elapsed
         phase = (elapsed % PERIOD_SEC) / PERIOD_SEC
         # Diurnal duty cycle: ~17%..93% utilization.
         base_util = 55.0 + 38.0 * math.sin(2.0 * math.pi * phase)
@@ -95,7 +95,7 @@ class SignalState:
             "model_id": self.model_id,
             "gpu_uuid": self.gpu_uuid,
             "gpu_model": GPU_MODEL,
-            "ts": int(now * 1000),
+            "ts": int(sim_time * 1000),
             "gpu_util_pct": round(util, 2),
             "sm_active_ratio": round(_clamp(frac + random.gauss(0, 0.03), 0, 1), 4),
             "tensor_active_ratio": round(_clamp(frac * 0.9 + random.gauss(0, 0.04), 0, 1), 4),
