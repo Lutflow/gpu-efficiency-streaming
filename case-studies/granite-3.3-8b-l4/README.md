@@ -20,45 +20,74 @@ under a controlled closed-loop load (fixed-concurrency phases), with **NVIDIA DC
 telemetry and **vLLM** serving metrics streamed 1/s into `gpu_telemetry` and processed by the deployed
 Flink statements (`flink/02_detect_anomalies.sql` etc.).
 
-## Results (real, audited)
+## Results — the efficiency frontier (real, audited)
 
-The headline KPI is **`joules_per_1k_tokens`** — DCGM energy per 1,000 *useful* generated tokens, i.e.
-the energy cost of useful work (not just utilization).
+The headline KPI is **`joules_per_1k_tokens`** — DCGM energy per 1,000 *useful* generated tokens (the
+energy cost of useful work, not just utilization). We swept **fixed concurrency 1 → 32** (each level
+held ≥ 3.5 min) and measured the KPI per level from the raw counters:
 
-| Phase | Concurrency | GPU util | GPU power | Throughput | **J / 1k tokens** |
+| Concurrency | GPU util | GPU power | Throughput | **J / 1k tokens** | TDP gate |
 |---|---|---|---|---|---|
-| **BUSY** | 32 (fixed) | ~100 % | **72.2 W** | **416 tok/s** | **173** |
-| **LOW**  | 4 (fixed)  | ~94 %  | 70.5 W | 60 tok/s | **1 182** |
-| **IDLE** | 0          | ~0 %   | 26.3 W | 0 | **NULL** |
+| 1  | ~100 % | 62.9 W | 15 tok/s  | **4 071** | OK |
+| 2  | ~100 % | 76.3 W | 30 tok/s  | (2 561) | **gated** |
+| 4  | ~100 % | 76.3 W | 59 tok/s  | (1 296) | **gated** |
+| 8  | ~100 % | 69.3 W | 118 tok/s | **589** | OK |
+| 16 | ~100 % | 68.0 W | 232 tok/s | **294** | OK |
+| 32 | ~100 % | 62.9 W | 415 tok/s | **152** | OK |
+| idle | ~0 % | 36.3 W | 0 | **NULL** | — |
 
-Real vLLM serving metrics over the run (n = 876 requests): **TTFT mean 221 ms**, end-to-end mean
-15.2 s, ≈ 76 ms/token, peak aggregate **416 tok/s**.
+![Efficiency frontier](../../assets/efficiency-frontier.png)
 
 How to read it:
 
-- **Utilization lies; energy-per-useful-work tells the truth.** The LOW phase ran at ~94 % GPU
-  utilization yet cost **~7× more energy per token** than BUSY (1 182 vs 173 J/1k) — because at low
-  concurrency the same ~71 W is amortized over far fewer batched tokens. A utilization dashboard would
-  call both "busy"; the J/1k KPI exposes the waste.
-- **Idle = maximum waste, and it's `NULL` on purpose.** At idle the L4 still drew **26.3 W** while
-  producing **zero** useful tokens — energy-per-useful-work is *undefined* (division by zero). `NULL`
-  is the honest signal for "infinitely inefficient", not a gap.
-- **The real number is higher than a back-of-envelope ~20-30 J/1k** because FP16 8B on an L4 sustains
-  ~416 tok/s, not the thousands a faster accelerator would; J/1k = power ÷ throughput. This is the
-  point of *measuring* rather than estimating.
+- **The efficiency frontier.** As batching concurrency rises, throughput scales ~linearly (15 → 415
+  tok/s) while power stays flat (~63-69 W), so **energy per useful token collapses ~27× (4 071 → 152
+  J/1k)**. That curve is the real, measured efficiency frontier for Granite-3.3-8B on an L4.
+- **Utilization lies; energy-per-useful-work tells the truth.** GPU utilization was **~100 % at every
+  loaded level** — yet the *cost* of that work ranged 27×. A utilization dashboard calls conc=1 and
+  conc=32 equally "busy"; only J/1k exposes that conc=1 wastes ~27× the energy per token.
+- **Idle = maximum waste, and it's `NULL` on purpose.** Idle still drew **36.3 W** producing **zero**
+  useful tokens — energy-per-useful-work is *undefined* (division by zero). `NULL` is the honest
+  signal for "infinitely inefficient", not a gap.
+- **The real number is higher than a back-of-envelope ~20-30 J/1k** — FP16 8B on an L4 peaks at ~415
+  tok/s, not the thousands a faster accelerator would; `J/1k = power ÷ throughput`. The point is to
+  *measure* per deployment, not estimate.
 
-## Rigor — cross-check + physical gates
+## Rigor — audit method, physical gates, cross-check
 
-- **Audit cross-check (primary).** All numbers above are computed directly from the **append-only**
-  `gpu_telemetry` topic (`data/gpu_telemetry_raw_sample.jsonl`, 852 rows): for each phase,
-  `Δenergy_J / Δgenerated_tokens` over the sustained interval. The same `Δenergy/Δtokens` formula is
-  what `flink/02_detect_anomalies.sql` computes per 15 s window in-pipeline (the live pipeline emits
-  the populated KPI; its changelog topic compacts historical windows, so the reproducible audit reads
-  the retained raw topic).
-- **Physical gate.** Any window implying energy `> 72 W × 15 s = 1 080 J` is discarded as an
-  edge/aggregation artifact (the L4 TDP is 72 W). Measured BUSY power 72.2 W sits exactly at TDP.
-- **Ordering gate.** `busy (173) < low (1 182) < idle (NULL)` — the expected, physically necessary
-  ordering holds.
+- **Audit method (primary, reproducible).** Every number above is computed directly from the
+  **append-only** `gpu_telemetry` topic ([`data/sweep_telemetry_raw.jsonl.gz`](data/sweep_telemetry_raw.jsonl.gz),
+  5 356 records) by the **interval method**: per concurrency phase, `Δenergy_J / Δgenerated_tokens`
+  over the sustained interval (edges trimmed). `data/sweep_results.csv` + `plot.py` regenerate the plot.
+- **Physical gate (enforced).** Any interval whose average power exceeds the **L4 TDP (72 W)** is
+  discarded as an artifact. This **caught conc=2 and conc=4** (76.3 W interval average — a brief
+  power-limit excursion / counter edge) and excluded them from the published frontier. The gate is not
+  decorative; it fired.
+- **Monotonicity gate.** J/1k decreases monotonically with concurrency (4 071 > 589 > 294 > 152) and
+  idle is `NULL` — the physically necessary ordering holds.
+- **In-pipeline cross-check (honest).** `flink/02_detect_anomalies.sql` computes the *identical*
+  `Δenergy/Δtokens` formula and emits the populated KPI live
+  ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz) — captured during the
+  run). However, the in-pipeline value is per **15 s window**, and at this bridge sampling rate (1-4
+  scrapes/s) with DCGM's coarse energy-counter cadence, individual 15 s windows are noisy (some show a
+  zero energy-delta). So the **published frontier uses the interval method over the retained raw topic**
+  rather than per-window medians. We do **not** claim a clean per-window `(a)=(b)` match — the formula
+  is identical, the window granularity and the resulting noise are not. (See *Limitations*.)
+
+## Limitations
+
+Stated plainly, because honest scope is the point:
+
+- **Single GPU, single model, single run.** One NVIDIA L4, one `RedHatAI/granite-3.3-8b-instruct`
+  (FP16 — FP8 not published for 3.3 at capture time), `--max-model-len 4096`, concurrency ≤ 32, one
+  sweep. Not a multi-GPU / multi-model / multi-run statistical study.
+- **Controlled synthetic load, not a production workload.** A closed-loop generator with a fixed
+  prompt and `max_tokens=200` — it exercises the mechanism (batching efficiency, idle waste); it is
+  *not* a representative production traffic mix.
+- **Per-window in-pipeline KPI is noisy at this sampling.** The robust numbers come from the interval
+  method (above); a production deployment would sample energy at a higher, steadier cadence.
+- **The business-impact figures below are an illustrative projection**, not a measured production
+  saving — see that section.
 
 ## Reproduce it
 
@@ -81,8 +110,9 @@ uv run deploy
 BOOTSTRAP_SERVERS=... KAFKA_API_KEY=... uv run bridge --rate-per-sec 1 \
   --model-id granite-3.3-8b-instruct --deployment-id inference-node-a
 
-# 4. Drive sustained fixed-concurrency load: IDLE(>=3m) -> LOW(conc 4, >=4m)
-#    -> BUSY(conc 32, >=6m) -> IDLE(>=3m); then audit data/gpu_telemetry_raw_sample.jsonl
+# 4. Drive a fixed-concurrency SWEEP (each level >=3.5 min, >=10 clean 15s windows):
+#    IDLE -> conc 1 -> 2 -> 4 -> 8 -> 16 -> 32 -> IDLE; log phase epoch timestamps,
+#    then audit data/sweep_telemetry_raw.jsonl.gz with the interval method (see plot.py / sweep_results.csv).
 ```
 
 The bridge is [`src/gpu_efficiency_streaming/bridge.py`](../../src/gpu_efficiency_streaming/bridge.py)
@@ -122,7 +152,7 @@ right-sizing), and the `SATURATION` alerts protect customer experience under loa
 | Telemetry | NVIDIA DCGM exporter 3.3.5 + vLLM Prometheus `/metrics`, bridged 1/s |
 | Pipeline | Confluent Cloud for Apache Flink — `flink/02,03,05,07` |
 | Captured | 2026-06-15 |
-| Raw data | [`data/gpu_telemetry_raw_sample.jsonl`](data/gpu_telemetry_raw_sample.jsonl) (852 records) |
+| Raw data | [`data/sweep_telemetry_raw.jsonl.gz`](data/sweep_telemetry_raw.jsonl.gz) (5 356 records) · [`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz) · [`data/sweep_results.csv`](data/sweep_results.csv) |
 
 ## References
 

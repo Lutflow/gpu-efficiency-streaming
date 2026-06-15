@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software or the case study, please cite it as below."
+title: "gpu-efficiency-streaming: Real-Time GPU Cost Governance on Confluent Cloud"
+abstract: >-
+  Real-time detection and forecasting of GPU inference inefficiency (idle-but-allocated and
+  saturation) using Confluent Cloud for Apache Flink built-in ML (ML_DETECT_ANOMALIES, ML_FORECAST),
+  Schema Registry, and Stream Lineage. Includes a measured case study on IBM Granite 3.3-8B Instruct
+  running on an NVIDIA L4.
+authors:
+  - name: "Lutflow"
+    website: "https://lutflow.dev"
+version: "0.2.0"
+date-released: "2026-06-15"
+license: "Apache-2.0"
+repository-code: "https://github.com/Lutflow/gpu-efficiency-streaming"
+keywords:
+  - kafka
+  - apache-flink
+  - confluent
+  - gpu
+  - llm-inference
+  - vllm
+  - anomaly-detection
+  - forecasting
+  - finops
+  - opentelemetry

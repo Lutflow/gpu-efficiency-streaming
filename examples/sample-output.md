@@ -2,9 +2,9 @@
 
 > **REAL hardware results** (IBM Granite 3.3-8B on a real NVIDIA L4, vLLM + DCGM, 100% real telemetry)
 > live in the [measured case study](../case-studies/granite-3.3-8b-l4/) with the raw JSONL attached.
-> Measured `joules_per_1k_tokens`: **173 (busy, 416 tok/s, 72 W) · 1 182 (low concurrency) · `NULL`
-> (idle = max waste)**. The rows below are from the **synthetic quickstart** run (real pipeline output,
-> synthetic input).
+> Measured efficiency frontier (concurrency sweep): **152 J/1k @ conc 32 · 294 @ 16 · 589 @ 8 · 4 071
+> @ conc 1 · `NULL` (max waste) idle**. The rows below are from the **synthetic quickstart** run (real
+> pipeline output, synthetic input).
 
 Captured from a **live run** of this pipeline on Confluent Cloud for Apache Flink. The input is the
 synthetic structured signal modeling an IBM Granite 3.3-8B Instruct deployment on NVIDIA L4 — see the
