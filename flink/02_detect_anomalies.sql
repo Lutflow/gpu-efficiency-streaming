@@ -11,8 +11,9 @@
 -- Multi-deployment is a documented roadmap item (one templated statement per deployment, or
 -- PARTITION BY once Confluent supports it for this function) -- see README "Roadmap".
 --
--- WARMUP: with a 15s tumbling window and minTrainingSize=20, the first anomalies appear in
--- ~5 minutes (20 windows), not the ~20 minutes a 1-minute window would require.
+-- WARMUP: with a 15s tumbling window and minTrainingSize=30 (enableStl=true needs a couple of
+-- seasonal cycles), the first anomalies appear in ~7-8 minutes (30 windows). STL decomposition
+-- is meaningful here because the producer emits a diurnal (seasonal) utilization signal.
 
 CREATE TABLE gpu_efficiency_anomalies
   DISTRIBUTED BY (`deployment_id`) INTO 1 BUCKETS
@@ -42,8 +43,8 @@ SELECT
     avg_gpu_util,                 -- monitored value (compute efficiency)
     window_time,                  -- timestamp
     JSON_OBJECT(
-      'minTrainingSize'      VALUE 20,
-      'enableStl'            VALUE false,
+      'minTrainingSize'      VALUE 30,
+      'enableStl'            VALUE true,
       'confidencePercentage' VALUE 95.0
     )
   ) OVER (

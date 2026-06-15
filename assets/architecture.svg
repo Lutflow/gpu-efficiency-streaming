@@ -1,87 +1,86 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="460" viewBox="0 0 1040 460" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="540" viewBox="0 0 1180 540" font-family="Segoe UI, Helvetica, Arial, sans-serif">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7a"/>
     </marker>
     <style>
-      .box { rx: 10; ry: 10; stroke-width: 1.5; }
-      .src { fill: #e8f0fe; stroke: #4285f4; }
-      .topic { fill: #fff4e5; stroke: #f5a623; }
-      .flink { fill: #ede7f6; stroke: #7e57c2; }
-      .sink { fill: #e6f4ea; stroke: #34a853; }
-      .opt { fill: #f5f5f5; stroke: #9aa5b1; stroke-dasharray: 5 4; }
-      .gov { fill: #fafbfc; stroke: #cfd8e3; }
-      .title { font-size: 15px; font-weight: 600; fill: #1f2933; }
-      .sub { font-size: 11px; fill: #5b6b7a; }
-      .lbl { font-size: 11px; fill: #5b6b7a; }
-      .opttxt { font-size: 11px; fill: #7b8794; }
+      .src { fill: #e8f0fe; stroke: #4285f4; stroke-width: 1.5; }
+      .topic { fill: #fff4e5; stroke: #f5a623; stroke-width: 1.5; }
+      .flink { fill: #ede7f6; stroke: #7e57c2; stroke-width: 1.5; }
+      .sink { fill: #e6f4ea; stroke: #34a853; stroke-width: 1.5; }
+      .ai { fill: #fde7f3; stroke: #d81b8c; stroke-width: 1.5; }
+      .t { font-size: 13px; font-weight: 600; fill: #1f2933; }
+      .s { font-size: 10.5px; fill: #5b6b7a; }
       .flow { stroke: #5b6b7a; stroke-width: 2; fill: none; }
     </style>
   </defs>
 
-  <text x="32" y="40" font-size="20" font-weight="700" fill="#1f2933">Real-Time GPU Efficiency Anomaly Detection on Confluent Cloud</text>
+  <text x="28" y="34" font-size="19" font-weight="700" fill="#1f2933">Real-Time GPU Efficiency Intelligence on Confluent Cloud</text>
+  <text x="28" y="54" class="s">detect + forecast → agentic remediation → governed multi-sink</text>
 
-  <!-- Datagen Source -->
-  <rect class="box src" x="32" y="90" width="170" height="74"/>
-  <text class="title" x="48" y="122">Datagen Source</text>
-  <text class="sub" x="48" y="142">synthetic, standards-</text>
-  <text class="sub" x="48" y="156">grounded telemetry</text>
+  <!-- source + telemetry -->
+  <rect class="src" x="28" y="240" width="150" height="62" rx="9"/>
+  <text class="t" x="42" y="268">uv run produce</text>
+  <text class="s" x="42" y="286">structured signal</text>
 
-  <!-- Topic -->
-  <rect class="box topic" x="246" y="90" width="170" height="74"/>
-  <text class="title" x="262" y="122">gpu_telemetry</text>
-  <text class="sub" x="262" y="142">Avro · Schema</text>
-  <text class="sub" x="262" y="156">Registry governed</text>
+  <rect class="topic" x="214" y="240" width="140" height="62" rx="9"/>
+  <text class="t" x="228" y="268">gpu_telemetry</text>
+  <text class="s" x="228" y="286">Avro · SR governed</text>
 
-  <!-- Flink TUMBLE -->
-  <rect class="box flink" x="460" y="90" width="180" height="74"/>
-  <text class="title" x="476" y="122">Flink TUMBLE 15s</text>
-  <text class="sub" x="476" y="142">avg gpu_util,</text>
-  <text class="sub" x="476" y="156">joules_per_1k_tokens</text>
+  <!-- branch 1: forecast -->
+  <rect class="flink" x="404" y="60" width="170" height="60" rx="9"/>
+  <text class="t" x="418" y="86">Flink ML_FORECAST</text>
+  <text class="s" x="418" y="104">predict trend (ARIMA/STL)</text>
+  <rect class="topic" x="610" y="60" width="180" height="60" rx="9"/>
+  <text class="t" x="624" y="86">gpu_efficiency_forecast</text>
 
-  <!-- Flink ML -->
-  <rect class="box flink" x="684" y="90" width="200" height="74"/>
-  <text class="title" x="700" y="118">ML_DETECT_ANOMALIES</text>
-  <text class="sub" x="700" y="138">ARIMA · OVER (ORDER BY)</text>
-  <text class="sub" x="700" y="154">is_anomaly + bounds</text>
+  <!-- branch 2: detect -->
+  <rect class="flink" x="404" y="240" width="170" height="62" rx="9"/>
+  <text class="t" x="418" y="266">Flink TUMBLE +</text>
+  <text class="t" x="418" y="282">ML_DETECT (STL)</text>
+  <rect class="topic" x="610" y="240" width="150" height="62" rx="9"/>
+  <text class="t" x="624" y="268">…_anomalies</text>
+  <text class="s" x="624" y="286">is_anomaly + bounds</text>
 
-  <!-- Alerts table -->
-  <rect class="box flink" x="560" y="216" width="200" height="64"/>
-  <text class="title" x="576" y="244">Flink alerts</text>
-  <text class="sub" x="576" y="263">IDLE_WASTE / SATURATION</text>
+  <rect class="flink" x="404" y="330" width="170" height="52" rx="9"/>
+  <text class="t" x="418" y="361">Flink alert rule</text>
+  <rect class="topic" x="610" y="326" width="150" height="60" rx="9"/>
+  <text class="t" x="624" y="352">…_alerts</text>
+  <text class="s" x="624" y="370">IDLE_WASTE / SAT</text>
 
-  <!-- Sinks -->
-  <rect class="box sink" x="120" y="330" width="200" height="64"/>
-  <text class="title" x="136" y="358">Amazon S3 Sink</text>
-  <text class="sub" x="136" y="377">efficiency data lake</text>
+  <!-- alerts fan-out -->
+  <rect class="sink" x="820" y="300" width="180" height="56" rx="9"/>
+  <text class="t" x="834" y="326">Tableflow → Iceberg</text>
+  <text class="s" x="834" y="344">FinOps analytics</text>
 
-  <rect class="box opt" x="360" y="330" width="200" height="64"/>
-  <text class="title" x="376" y="358" fill="#52606d">HTTP Sink</text>
-  <text class="opttxt" x="376" y="377">optional · alert webhook</text>
+  <rect class="ai" x="820" y="380" width="190" height="58" rx="9"/>
+  <text class="t" x="834" y="406">Flink AI_COMPLETE</text>
+  <text class="s" x="834" y="424">Gemini remediation</text>
+  <rect class="topic" x="1030" y="380" width="124" height="58" rx="9"/>
+  <text class="t" x="1042" y="406">…_remediations</text>
+  <text class="s" x="1042" y="424">recommend (not act)</text>
 
-  <rect class="box opt" x="600" y="330" width="210" height="64"/>
-  <text class="title" x="616" y="358" fill="#52606d">Datadog Metrics Sink</text>
-  <text class="opttxt" x="616" y="377">optional · observability</text>
+  <!-- branch 3: raw archive -->
+  <rect class="sink" x="404" y="450" width="200" height="56" rx="9"/>
+  <text class="t" x="418" y="476">Amazon S3 (raw archive)</text>
+  <text class="s" x="418" y="494">replay / training</text>
 
-  <!-- Governance band -->
-  <rect class="box gov" x="900" y="90" width="110" height="304"/>
-  <text class="lbl" x="918" y="120" font-weight="600" fill="#52606d">Stream</text>
-  <text class="lbl" x="918" y="136" font-weight="600" fill="#52606d">Governance</text>
-  <text class="lbl" x="918" y="170">Schema</text>
-  <text class="lbl" x="918" y="184">Registry</text>
-  <text class="lbl" x="918" y="214">Stream</text>
-  <text class="lbl" x="918" y="228">Lineage</text>
+  <!-- flows -->
+  <path class="flow" d="M178,271 L212,271" marker-end="url(#arrow)"/>
+  <!-- telemetry branches -->
+  <path class="flow" d="M354,255 L380,255 L380,90 L402,90" marker-end="url(#arrow)"/>
+  <path class="flow" d="M354,271 L402,271" marker-end="url(#arrow)"/>
+  <path class="flow" d="M354,287 L380,287 L380,478 L402,478" marker-end="url(#arrow)"/>
+  <!-- forecast -->
+  <path class="flow" d="M574,90 L608,90" marker-end="url(#arrow)"/>
+  <!-- detect chain -->
+  <path class="flow" d="M574,271 L608,271" marker-end="url(#arrow)"/>
+  <path class="flow" d="M685,302 L685,326" marker-end="url(#arrow)"/>
+  <path class="flow" d="M574,356 L608,356" marker-end="url(#arrow)"/>
+  <!-- alerts fan-out -->
+  <path class="flow" d="M760,350 L790,350 L790,328 L818,328" marker-end="url(#arrow)"/>
+  <path class="flow" d="M760,366 L790,366 L790,409 L818,409" marker-end="url(#arrow)"/>
+  <path class="flow" d="M1010,409 L1028,409" marker-end="url(#arrow)"/>
 
-  <!-- Flows -->
-  <path class="flow" d="M202,127 L244,127" marker-end="url(#arrow)"/>
-  <path class="flow" d="M416,127 L458,127" marker-end="url(#arrow)"/>
-  <path class="flow" d="M640,127 L682,127" marker-end="url(#arrow)"/>
-  <!-- ML down to alerts -->
-  <path class="flow" d="M784,164 L784,200 L760,200 L760,214" marker-end="url(#arrow)"/>
-  <!-- alerts to sinks -->
-  <path class="flow" d="M620,280 L620,308 L220,308 L220,328" marker-end="url(#arrow)"/>
-  <path class="flow" d="M650,280 L650,308 L460,308 L460,328" marker-end="url(#arrow)"/>
-  <path class="flow" d="M700,280 L700,308 L705,308 L705,328" marker-end="url(#arrow)"/>
-
-  <text x="32" y="432" class="sub">100% Confluent Cloud · the ARIMA model runs inside Flink SQL — no separate model-serving infrastructure.</text>
+  <text x="28" y="528" class="s">All nodes use public Confluent capabilities (ML_DETECT_ANOMALIES, ML_FORECAST, AI_COMPLETE, Tableflow) on synthetic, standards-grounded telemetry.</text>
 </svg>

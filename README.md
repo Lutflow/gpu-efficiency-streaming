@@ -23,46 +23,52 @@ divided by useful generated tokens — is the kind of unit a platform team can p
 
 ## Architecture
 
-![Architecture: Datagen Source to Flink TUMBLE to ML_DETECT_ANOMALIES to S3 / webhook / Datadog](assets/architecture.svg)
+![Architecture: structured producer to Flink forecast + anomaly detection to Iceberg + Gemini remediation](assets/architecture.svg)
 
 ```text
-[Datagen Source] → gpu_telemetry (Avro, Schema Registry)
-        │
-[Flink TUMBLE 15s]            → per-window efficiency (avg gpu_util, joules_per_1k_tokens)
-[Flink ML_DETECT_ANOMALIES]   → ARIMA, OVER (ORDER BY window_time) → is_anomaly + forecast bounds
-        │
-[Flink alerts]  → gpu_efficiency_alerts (IDLE_WASTE / SATURATION / OK)
-        ├─→ [Amazon S3 Sink]            efficiency data lake (FinOps / billing reconciliation)
-        ├─→ [HTTP Sink]      (optional) anomaly alerts to a webhook
-        └─→ [Datadog Sink]   (optional) real-time efficiency observability
+uv run produce  →  gpu_telemetry (Avro, Schema Registry)
+   │
+   ├─→ [Flink ML_FORECAST]                  → gpu_efficiency_forecast   (predict efficiency trend)
+   │
+   ├─→ [Flink TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA, STL)]
+   │        → gpu_efficiency_anomalies → [Flink alert rule] → gpu_efficiency_alerts (IDLE_WASTE / SATURATION)
+   │                                                              ├─→ [Tableflow → Iceberg]  FinOps analytics (shift-left)
+   │                                                              └─→ [Flink AI_COMPLETE (Gemini)] → gpu_efficiency_remediations
+   │
+   └─→ [Amazon S3 Sink]                     raw telemetry archive (replay / training)
 ```
 
-This `Source → Flink → Flink → Sink` graph is exactly what **Stream Lineage** renders in the Confluent
-Cloud console.
+This is the Confluent 2026 flagship shape — **detect + forecast → agentic remediation → governed
+multi-sink** — and it renders in **Stream Lineage** as a tree, not a line. Every node uses a public
+Confluent capability (ML_DETECT_ANOMALIES, ML_FORECAST, AI_COMPLETE model inference, Tableflow) on the
+generic telemetry contract; nothing proprietary.
 
-## Run it (one command)
+## Run it (two commands)
 
 Prerequisites: a [Confluent Cloud](https://confluent.cloud) account, [Terraform](https://www.terraform.io/) ≥ 1.6,
-[`uv`](https://docs.astral.sh/uv/), and an AWS account with an S3 bucket.
+[`uv`](https://docs.astral.sh/uv/), an AWS account with an S3 bucket, and a [Google AI Studio](https://aistudio.google.com/)
+API key (for the Gemini remediation branch).
 
 ```bash
 # 1. Provide credentials (never committed — terraform.tfvars is gitignored)
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-$EDITOR terraform/terraform.tfvars
+$EDITOR terraform/terraform.tfvars   # Confluent + AWS + gemini_api_key
 
-# 2. Stand the whole pipeline up
+# 2. Stand up infra + Flink statements + sinks
 uv run deploy
 
-# 3. ...screenshot the printed Stream Lineage URL once data flows (~5 min warmup)
+# 3. Feed the pipeline with the structured synthetic signal
+uv run produce            # streams correlated telemetry into gpu_telemetry
 
-# 4. Tear it all down
+# 4. ...screenshot the printed Stream Lineage URL once the ML warms up (~7-8 min)
+
+# 5. Tear it all down
 uv run destroy
 ```
 
-`uv run deploy` runs `terraform apply`. **Everything** — environment, Kafka cluster, Schema Registry
-subject, Flink compute pool, connectors, and the Flink SQL statements that run `ML_DETECT_ANOMALIES` —
-is declared as Terraform. The Flink statements read their SQL from [`flink/`](flink/) via `file()`, so
-the SQL in this repo is the single source of truth.
+`uv run deploy` runs `terraform apply` (environment, Standard cluster, Schema Registry subject, Flink
+compute pool, the Flink statements, and the sinks). `uv run produce` then streams the structured signal
+into `gpu_telemetry`. The Flink SQL lives in [`flink/`](flink/) and is the single source of truth.
 
 > **Warmup:** with a 15s tumbling window and `minTrainingSize=20`, the first anomalies appear after
 > roughly 20 windows (~5 minutes).
@@ -103,16 +109,21 @@ Flink/ML/Sink pipeline stay identical** — that is what makes this translation-
 
 ```text
 schemas/gpu_telemetry.avsc      # public, standards-grounded Avro schema
-scripts/datagen_schema.json     # Datagen Source generator (bimodal gpu_util seeds anomalies)
+scripts/datagen_schema.json     # documented reference for a Datagen Source (NOT the deployed source)
+src/gpu_efficiency_streaming/
+  produce.py                    # `uv run produce` — structured-signal telemetry producer (the source)
+  deploy.py / destroy.py        # `uv run deploy` / `uv run destroy`
 flink/                          # the SQL pipeline (single source of truth)
   01a_add_event_time.sql        #   computed event_time column (TO_TIMESTAMP_LTZ)
   01b_set_watermark.sql         #   event-time watermark on event_time
-  02_detect_anomalies.sql       #   TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA)
+  02_detect_anomalies.sql       #   TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA + STL)
   03_alerts.sql                 #   IDLE_WASTE / SATURATION business rule
-  04_datadog_metrics.sql        #   (optional) reshape for the Datadog Metrics Sink
-terraform/                      # all infrastructure + connectors + Flink statements
-src/gpu_efficiency_streaming/   # `uv run deploy` / `uv run destroy`
-tests/                          # schema + datagen validation (pytest)
+  05_forecast.sql               #   ML_FORECAST — predict the efficiency trend
+  06a_gemini_connection.sql     #   CONNECTION to Google AI (Gemini)
+  06b_gemini_model.sql          #   text-generation MODEL for remediation
+  06c_remediation.sql           #   AI_COMPLETE — agentic remediation recommendations
+terraform/                      # all infrastructure + sinks + Flink statements
+tests/                          # schema + datagen + producer validation (pytest)
 ```
 
 ## Design notes
