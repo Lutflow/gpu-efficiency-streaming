@@ -16,9 +16,9 @@ S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 > [`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/) (raw data + plot + reproduction
 > included). The synthetic producer below is the **reproducible quickstart (no GPU required)**.
 
-> **📓 Technical + business lab notebook:** [`case-studies/granite-3.3-8b-l4/analysis.ipynb`](case-studies/granite-3.3-8b-l4/analysis.ipynb)
-> — the full analysis (efficiency frontier, dual-method power cross-check, cost model) rendered with
-> outputs, reproducible offline from the committed data.
+**📓 Technical + business lab notebook:** [`case-studies/granite-3.3-8b-l4/analysis.ipynb`](case-studies/granite-3.3-8b-l4/analysis.ipynb)
+— the full analysis (efficiency frontier, dual-method power cross-check, cost model) rendered with
+outputs, reproducible offline from the committed data.
 
 The anomaly-detection and forecasting models run *inside* Flink SQL — there is no separate
 model-serving infrastructure to operate.
