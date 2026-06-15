@@ -155,6 +155,12 @@ Read it as: measured `avg_gpu_util = 7.33` while ARIMA expected `≈ 51.2` (norm
 — below the lower bound, so an allocated-but-idle GPU is flagged `IDLE_WASTE`. The forecast branch
 emits the same shape ahead of time as `PREDICTED_IDLE` in `gpu_efficiency_capacity_risk`.
 
+The headline KPI **`joules_per_1k_tokens`** (energy per useful work) is captured live in
+`gpu_efficiency_anomalies` — efficient windows run **~29 J/1k tokens** (`avg_gpu_util ≈ 55`), low-utilization
+windows climb to **71-96 J/1k** (`util ≈ 8-15`), and a **fully idle** window (`gen_tokens_win = 0`) emits
+`NULL` — energy burned for *zero* useful tokens, i.e. undefined cost-per-work = maximum waste. Full rows
+and interpretation in [`examples/sample-output.md`](examples/sample-output.md#gpu_efficiency_anomalies--energy-efficiency-kpi).
+
 ## Repository layout
 
 ```text

@@ -27,7 +27,9 @@ WITH windowed AS (
     AVG(num_requests_running)                                      AS avg_running,
     -- Counter deltas within the window. Valid because this is a single deployment / single stream:
     (MAX(generation_tokens_total) - MIN(generation_tokens_total))  AS gen_tokens_win,
-    (MAX(energy_mj) - MIN(energy_mj)) / 1000.0                      AS energy_joules_win
+    -- CAST to DOUBLE: the chained DECIMAL division (energy/1000 then / tokens) otherwise
+    -- overflows DECIMAL(38) precision and Flink returns NULL for the KPI. DOUBLE avoids it.
+    CAST(MAX(energy_mj) - MIN(energy_mj) AS DOUBLE) / 1000.0        AS energy_joules_win
   FROM TUMBLE(TABLE `gpu_telemetry`, DESCRIPTOR(`event_time`), INTERVAL '15' SECOND)
   WHERE deployment_id = 'inference-node-a'   -- demo single-key (multi-deployment = roadmap)
   GROUP BY deployment_id, window_start, window_time
@@ -38,7 +40,8 @@ SELECT
   avg_gpu_util,
   gen_tokens_win,
   -- Energy-efficiency KPI: DCGM energy (joules) per 1k useful generated tokens.
-  energy_joules_win / NULLIF(gen_tokens_win, 0) * 1000             AS joules_per_1k_tokens,
+  -- DOUBLE throughout so the division never hits DECIMAL precision overflow (which emits NULL).
+  energy_joules_win / NULLIF(CAST(gen_tokens_win AS DOUBLE), 0.0) * 1000.0   AS joules_per_1k_tokens,
   ML_DETECT_ANOMALIES(
     avg_gpu_util,                 -- monitored value (compute efficiency)
     window_time,                  -- timestamp
