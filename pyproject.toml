@@ -16,6 +16,7 @@ dev = []
 deploy = "gpu_efficiency_streaming.deploy:main"
 destroy = "gpu_efficiency_streaming.destroy:main"
 produce = "gpu_efficiency_streaming.produce:main"
+bridge = "gpu_efficiency_streaming.bridge:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,16 +1,19 @@
-# Real-Time GPU Efficiency Anomaly Detection on Confluent Cloud
+# Real-Time GPU Cost Governance on Confluent Cloud
 
 [![CI](https://github.com/Lutflow/gpu-efficiency-streaming/actions/workflows/ci.yml/badge.svg)](https://github.com/Lutflow/gpu-efficiency-streaming/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Built with Confluent](https://img.shields.io/badge/built%20with-Confluent%20Cloud-0B1FA0.svg)](https://www.confluent.io/)
 
-Detect **idle-but-allocated GPU** and **saturation** in an LLM inference fleet **in real time**,
-using 100% Confluent Cloud: **structured producer → Flink (`TUMBLE` + `ML_DETECT_ANOMALIES`, ARIMA/STL,
-plus `ML_FORECAST`) → Amazon S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
+Catch **idle-but-allocated GPU** and **saturation** in an LLM inference fleet **in real time** and turn
+the energy-per-useful-work signal into **GPU cost governance** — using 100% Confluent Cloud:
+**producer/bridge → Flink (`TUMBLE` + `ML_DETECT_ANOMALIES`, ARIMA/STL, plus `ML_FORECAST`) → Amazon
+S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 
-The modeled workload is an **IBM Granite 3.3-8B Instruct** deployment (the open model distributed by
-Red Hat) running on **NVIDIA L4** GPUs — an open-source inference stack monitored end-to-end on
-Confluent.
+> **📊 Measured case study:** this pipeline was run against a **real IBM Granite 3.3-8B Instruct
+> deployment on a real NVIDIA L4** (vLLM + NVIDIA DCGM, 100% real telemetry). Measured efficiency:
+> **173 J/1k tokens busy vs 1 182 at low concurrency vs `NULL` (max waste) idle** — see
+> [`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/) (raw data + reproduction
+> included). The synthetic producer below is the **reproducible quickstart (no GPU required)**.
 
 The anomaly-detection and forecasting models run *inside* Flink SQL — there is no separate
 model-serving infrastructure to operate.
@@ -167,7 +170,8 @@ and interpretation in [`examples/sample-output.md`](examples/sample-output.md#gp
 schemas/gpu_telemetry.avsc      # public, standards-grounded Avro schema
 scripts/datagen_schema.json     # documented reference for a Datagen Source (NOT the deployed source)
 src/gpu_efficiency_streaming/
-  produce.py                    # `uv run produce` — structured-signal telemetry producer (the source)
+  produce.py                    # `uv run produce` — structured-signal telemetry producer (quickstart)
+  bridge.py                     # `uv run bridge` — real vLLM+DCGM -> Avro bridge (measured case study)
   deploy.py / destroy.py        # `uv run deploy` / `uv run destroy`
 flink/                          # the SQL pipeline (single source of truth)
   README.md                     #   DAG walkthrough + per-statement reference
@@ -180,6 +184,7 @@ flink/                          # the SQL pipeline (single source of truth)
 terraform/                      # all infrastructure + sinks + Flink statements
 experimental/                   # NOT deployed: an AI_COMPLETE (Gemini) remediation exploration
 examples/                       # real captured ML output (examples/sample-output.md)
+case-studies/                   # MEASURED: real Granite-3.3-8B/L4 run (real data + reproduction)
 tests/                          # schema + datagen + producer validation (pytest)
 ```
 
@@ -275,7 +280,7 @@ Modeled workload and tooling:
 Apache®, Apache Kafka®, Kafka®, Apache Flink®, and Flink® are trademarks of the
 [Apache Software Foundation](https://www.apache.org/). Confluent® is a trademark of Confluent, Inc.
 NVIDIA® and DCGM are trademarks of NVIDIA Corporation. IBM® and Granite are trademarks of IBM Corp.
-OpenTelemetry is a trademark of The Linux Foundation. All other trademarks are the property of their
+Red Hat® is a trademark of Red Hat, Inc. OpenTelemetry is a trademark of The Linux Foundation. All other trademarks are the property of their
 respective owners. This is an independent, unaffiliated project; use of these names does not imply
 any endorsement.
 
