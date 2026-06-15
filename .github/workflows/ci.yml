@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
       - name: Lint (ruff)
         run: uv run ruff check .
       - name: Test (pytest)
@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
       - name: Execute the case-study notebook on a copy (reproducibility check)
         # Runs from the case-study dir so the notebook's data/ paths resolve; writes to a
         # throwaway output file so the committed notebook is unchanged. Does not fail on output diffs.
