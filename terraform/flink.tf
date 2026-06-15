@@ -2,7 +2,8 @@
 # flink.tf -- Flink SQL statements, managed as code.
 # Each statement's text is read from flink/*.sql via file(), so the SQL in the
 # repo is the single source of truth. depends_on enforces submission order:
-#   watermark -> detect_anomalies -> alerts -> (optional) datadog_metrics
+#   add_event_time -> set_watermark -> detect_anomalies -> alerts
+#   add_event_time -> set_watermark -> forecast -> capacity_risk
 # ===========================================================================
 
 locals {
@@ -120,3 +121,45 @@ resource "confluent_flink_statement" "alerts" {
   depends_on = [confluent_flink_statement.detect_anomalies]
 }
 
+
+resource "confluent_flink_statement" "forecast" {
+  organization { id = data.confluent_organization.main.id }
+  environment { id = confluent_environment.demo.id }
+  compute_pool { id = confluent_flink_compute_pool.demo.id }
+  principal { id = confluent_service_account.app.id }
+
+  statement_name = "gpu-efficiency-05-forecast"
+  statement      = file("${path.module}/../flink/05_forecast.sql")
+  properties     = local.flink_properties
+  rest_endpoint  = data.confluent_flink_region.demo.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.app_flink.id
+    secret = confluent_api_key.app_flink.secret
+  }
+
+  depends_on = [
+    confluent_flink_statement.set_watermark,
+    confluent_role_binding.app_topic,
+    confluent_role_binding.app_subject,
+  ]
+}
+
+resource "confluent_flink_statement" "capacity_risk" {
+  organization { id = data.confluent_organization.main.id }
+  environment { id = confluent_environment.demo.id }
+  compute_pool { id = confluent_flink_compute_pool.demo.id }
+  principal { id = confluent_service_account.app.id }
+
+  statement_name = "gpu-efficiency-07-capacity-risk"
+  statement      = file("${path.module}/../flink/07_capacity_risk.sql")
+  properties     = local.flink_properties
+  rest_endpoint  = data.confluent_flink_region.demo.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.app_flink.id
+    secret = confluent_api_key.app_flink.secret
+  }
+
+  depends_on = [confluent_flink_statement.forecast]
+}

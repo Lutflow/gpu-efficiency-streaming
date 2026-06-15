@@ -11,7 +11,7 @@ AS
 SELECT
   deployment_id,
   window_start,
-  forecast.forecast_value AS predicted_util,
-  'PREDICTED_IDLE'        AS risk_flag
+  fc[1].forecast_value AS predicted_util,
+  'PREDICTED_IDLE'     AS risk_flag
 FROM gpu_efficiency_forecast
-WHERE forecast.forecast_value < 20;
+WHERE fc[1].forecast_value < 20;

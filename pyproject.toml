@@ -7,7 +7,7 @@ requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Lutflow" }]
 keywords = ["kafka", "flink", "confluent", "gpu", "llm-inference", "anomaly-detection", "finops", "opentelemetry"]
-dependencies = ["confluent-kafka>=2.5"]
+dependencies = ["confluent-kafka[avro,schemaregistry]>=2.5", "certifi>=2024.0"]
 
 [project.optional-dependencies]
 dev = []

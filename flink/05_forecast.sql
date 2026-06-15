@@ -30,5 +30,5 @@ SELECT
   ) OVER (
     ORDER BY window_time
     RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-  ) AS forecast
+  ) AS fc
 FROM windowed;
