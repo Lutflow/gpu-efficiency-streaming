@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
         description="Produce structured synthetic GPU efficiency telemetry to Kafka (Avro).",
     )
     parser.add_argument("--deployment-id", default="inference-node-a")
-    parser.add_argument("--model-id", default="llm-7b")
+    parser.add_argument("--model-id", default="granite-3.3-8b-instruct")
     parser.add_argument(
         "--rate-per-sec", type=float, default=float(os.environ.get("RATE_PER_SEC", "1.0"))
     )

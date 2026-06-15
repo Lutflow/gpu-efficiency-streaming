@@ -4,12 +4,16 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Built with Confluent](https://img.shields.io/badge/built%20with-Confluent%20Cloud-0B1FA0.svg)](https://www.confluent.io/)
 
-Detect **idle-but-allocated GPU** and **saturation** in your LLM inference fleet **in real time**,
-using 100% Confluent Cloud: **Datagen Source → Flink (`TUMBLE` + `ML_DETECT_ANOMALIES`, ARIMA) →
-Amazon S3 Sink**, governed by **Schema Registry** and visualized in **Stream Lineage**.
+Detect **idle-but-allocated GPU** and **saturation** in an LLM inference fleet **in real time**,
+using 100% Confluent Cloud: **structured producer → Flink (`TUMBLE` + `ML_DETECT_ANOMALIES`, ARIMA/STL,
+plus `ML_FORECAST`) → Amazon S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 
-The anomaly-detection model runs *inside* Flink SQL — there is no separate model-serving
-infrastructure to operate.
+The modeled workload is an **IBM Granite 3.3-8B Instruct** deployment (the open model distributed by
+Red Hat) running on **NVIDIA L4** GPUs — an open-source inference stack monitored end-to-end on
+Confluent.
+
+The anomaly-detection and forecasting models run *inside* Flink SQL — there is no separate
+model-serving infrastructure to operate.
 
 ## Why this matters
 
@@ -45,6 +49,21 @@ low-utilization windows ahead — and lands every branch in a governed **Amazon 
 **Stream Lineage** as a tree, not a line. Every node uses a public Confluent capability on the generic,
 standards-grounded telemetry contract; nothing proprietary.
 
+## Agent-ready
+
+The pipeline emits **governed, structured signals** rather than dashboards: anomaly records from
+`ML_DETECT_ANOMALIES` (waste happening *now*) and predictive `capacity_risk` records from
+`ML_FORECAST` (waste *about to* happen). These are exactly the inputs a **Confluent Streaming Agent**
+would consume to drive **agentic investigation & remediation** — correlating the signal, deciding an
+action (rightsize, consolidate, alert an owner), and writing the outcome back as another governed
+stream.
+
+This repo is **agent-ready, not an agent**: no LLM is deployed in the live pipeline. An exploration of
+in-stream remediation with Flink's `AI_COMPLETE` (Gemini) lives in [`experimental/`](experimental/),
+documented honestly — it is not deployed because `AI_COMPLETE` is non-deterministic and Flink rejects
+it over the changelog streams this pipeline produces. A production agent would use Confluent
+**Streaming Agents** for that step.
+
 ## Run it (two commands)
 
 Prerequisites: a [Confluent Cloud](https://confluent.cloud) account, [Terraform](https://www.terraform.io/) ≥ 1.6,
@@ -76,7 +95,9 @@ into `gpu_telemetry`. The Flink SQL lives in [`flink/`](flink/) and is the singl
 
 ## What's synthetic vs. production
 
-The telemetry in this demo is **synthetic but structured**. A small producer
+The telemetry in this demo is **synthetic but structured**. It **models an IBM Granite 3.3-8B Instruct
+inference deployment running on NVIDIA L4 GPUs** — it *models* that workload, it does **not measure**
+real hardware. A small producer
 ([`src/gpu_efficiency_streaming/produce.py`](src/gpu_efficiency_streaming/produce.py), run with
 `uv run produce`) emits a **temporally structured signal** — a diurnal/sawtooth utilization duty cycle
 plus noise, with randomly injected *idle episodes* — and the dependent fields are **physically

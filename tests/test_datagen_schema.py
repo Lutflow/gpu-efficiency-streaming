@@ -49,7 +49,9 @@ def test_uses_generic_identifiers_only(datagen: dict) -> None:
     deployments = fields["deployment_id"]["type"]["arg.properties"]["options"]
     models = fields["model_id"]["type"]["arg.properties"]["options"]
     assert all(d.startswith("inference-node-") for d in deployments), deployments
-    assert all(m.startswith("llm-") for m in models), models
+    # model_id must be a public, open-source model identifier (no internal/code names).
+    allowed_models = {"granite-3.3-8b-instruct"}
+    assert set(models) <= allowed_models, models
 
 
 def test_single_deployment_id(datagen: dict) -> None:

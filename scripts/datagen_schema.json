@@ -5,7 +5,7 @@
   "doc": "Datagen Source generator definition. Mirrors schemas/gpu_telemetry.avsc, with Avro Random Generator arg.properties to produce plausible synthetic telemetry. The gpu_util_pct distribution is intentionally bimodal (mostly busy, occasionally idle) so that ML_DETECT_ANOMALIES has clear idle-waste anomalies to flag.",
   "fields": [
     {"name": "deployment_id", "type": {"type": "string", "arg.properties": {"options": ["inference-node-a"]}}},
-    {"name": "model_id", "type": {"type": "string", "arg.properties": {"options": ["llm-7b", "llm-3b"]}}},
+    {"name": "model_id", "type": {"type": "string", "arg.properties": {"options": ["granite-3.3-8b-instruct"]}}},
     {"name": "gpu_uuid", "type": {"type": "string", "arg.properties": {"options": ["GPU-0a1b2c3d", "GPU-4e5f6a7b", "GPU-8c9d0e1f", "GPU-2f3a4b5c"]}}},
     {"name": "gpu_model", "type": {"type": "string", "arg.properties": {"options": ["NVIDIA L4"]}}},
     {"name": "ts", "type": {"type": "long", "arg.properties": {"iteration": {"start": 1700000000000, "step": 1000}}}},

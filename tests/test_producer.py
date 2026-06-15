@@ -17,13 +17,13 @@ def _schema_field_names() -> set[str]:
 
 
 def test_record_has_exactly_schema_fields() -> None:
-    state = SignalState("inference-node-a", "llm-7b")
+    state = SignalState("inference-node-a", "granite-3.3-8b-instruct")
     rec = state.next_record(t0=0.0, interval_s=1.0)
     assert set(rec.keys()) == _schema_field_names()
 
 
 def test_counters_are_monotonic() -> None:
-    state = SignalState("inference-node-a", "llm-7b")
+    state = SignalState("inference-node-a", "granite-3.3-8b-instruct")
     prev = state.next_record(0.0, 1.0)
     for _ in range(200):
         cur = state.next_record(0.0, 1.0)
@@ -34,7 +34,7 @@ def test_counters_are_monotonic() -> None:
 
 
 def test_values_in_plausible_ranges() -> None:
-    state = SignalState("inference-node-a", "llm-7b")
+    state = SignalState("inference-node-a", "granite-3.3-8b-instruct")
     for _ in range(500):
         r = state.next_record(0.0, 1.0)
         assert 0.0 <= r["gpu_util_pct"] <= 100.0
@@ -47,7 +47,7 @@ def test_values_in_plausible_ranges() -> None:
 def test_signal_is_structured_not_uniform() -> None:
     """Power should correlate with utilization (busy windows draw more watts),
     proving the fields are correlated rather than independently drawn."""
-    state = SignalState("inference-node-a", "llm-7b")
+    state = SignalState("inference-node-a", "granite-3.3-8b-instruct")
     recs = [state.next_record(0.0, 1.0) for _ in range(800)]
     busy = [r["power_watts"] for r in recs if r["gpu_util_pct"] > 80]
     idle = [r["power_watts"] for r in recs if r["gpu_util_pct"] < 20]
