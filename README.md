@@ -90,8 +90,9 @@ uv run destroy
 compute pool, the Flink statements, and the sinks). `uv run produce` then streams the structured signal
 into `gpu_telemetry`. The Flink SQL lives in [`flink/`](flink/) and is the single source of truth.
 
-> **Warmup:** with a 15s tumbling window and `minTrainingSize=20`, the first anomalies appear after
-> roughly 20 windows (~5 minutes).
+> **Warmup:** detection runs with a 15s tumbling window, `minTrainingSize=30`, Seasonal-Trend
+> decomposition (`enableStl=true`, `m=12`), so the first anomalies appear after roughly 30 windows
+> (~7-8 minutes). `ML_FORECAST` (which needs more history) starts emitting a little later.
 
 ## What's synthetic vs. production
 
@@ -153,7 +154,13 @@ tests/                          # schema + datagen + producer validation (pytest
   window function with **no `PARTITION BY`** — matching the documented pattern exactly. This guarantees
   the statement validates, and makes the within-window counter delta (`MAX − MIN`) semantically valid on
   a single stream.
-- **15-second window** keeps the ARIMA warmup to ~5 minutes for a live demo.
+- **Seasonal-Trend detection.** `ML_DETECT_ANOMALIES` runs with `enableStl=true`, `m=12`, and
+  `minTrainingSize=30`, so it learns the diurnal duty cycle and flags *unexpected* idle/saturation
+  rather than the predictable daily trough. With a 15-second window that puts the warmup at ~7-8 minutes.
+- **Predictive capacity-risk branch.** A parallel `ML_FORECAST(...)` (`horizon=1`, `enableStl=true`,
+  `m=12`) projects the next window's utilization off `gpu_telemetry`; `07_capacity_risk.sql` reads the
+  forecast array (`fc[1].forecast_value`) and emits a `PREDICTED_IDLE` record when the projected
+  utilization falls below threshold — waste flagged *before* it happens.
 - **Robust event time.** `ts` is carried as a plain epoch-millis `long` (no Avro logical type, so the
   pipeline never depends on the source connector preserving it). Flink derives an event-time attribute
   with a computed column — `ALTER TABLE gpu_telemetry ADD event_time AS TO_TIMESTAMP_LTZ(ts, 3)` — and a
@@ -175,7 +182,8 @@ tests/                          # schema + datagen + producer validation (pytest
   them). This is Lutflow's default security posture — grant the minimum each workload needs.
 - **Governed schema.** The canonical Avro schema is registered by Terraform (the registrant — not
   ad-hoc connector auto-registration) and the subject compatibility is pinned to **`BACKWARD`**, so
-  schema evolution can't silently break consumers. The Datagen Source produces the identical base schema.
+  schema evolution can't silently break consumers. The producer (`uv run produce`) produces the
+  identical base schema.
   CLI equivalent:
 
   ```bash
@@ -191,8 +199,9 @@ tests/                          # schema + datagen + producer validation (pytest
 
 - **Multi-deployment:** one templated statement per `deployment_id`, or `PARTITION BY` once Confluent
   supports it for `ML_DETECT_ANOMALIES`.
-- **Physically-correlated synthetic data:** the Datagen Random Generator produces independent fields; a
-  custom producer or a Flink shaping view would correlate `tokens ∝ util`, etc.
+- **Agentic remediation:** wire the governed anomaly + `capacity_risk` signals into a **Confluent
+  Streaming Agent** to investigate and act (rightsize / consolidate / notify). An `AI_COMPLETE`
+  exploration is documented in [`experimental/`](experimental/).
 - **Production source:** documented OpenTelemetry Collector / Prometheus→Kafka swap-in.
 
 > ### Built by Lutflow
@@ -202,6 +211,38 @@ tests/                          # schema + datagen + producer validation (pytest
 > compounds. This repo shows the streaming pattern; the production version goes deeper.
 >
 > **Running LLM inference at scale and want the production version? → [lutflow.dev](https://lutflow.dev)**
+
+## References
+
+Confluent Cloud for Apache Flink:
+
+- [ML_DETECT_ANOMALIES — Detect Anomalies in Data](https://docs.confluent.io/cloud/current/ai/builtin-functions/detect-anomalies.html)
+- [ML_FORECAST — Forecast Data Trends](https://docs.confluent.io/cloud/current/ai/builtin-functions/forecast.html)
+- [Streaming Agents](https://docs.confluent.io/cloud/current/ai/streaming-agents/overview.html)
+- [Built-in anomaly detection for agentic investigation & remediation (blog)](https://www.confluent.io/blog/flink-ml-anomaly-detection-for-agentic-investigation-remediation)
+- [Track Data with Stream Lineage](https://docs.confluent.io/cloud/current/stream-governance/stream-lineage.html)
+
+Telemetry standards (the schema's provenance):
+
+- [vLLM production metrics](https://docs.vllm.ai/en/latest/usage/metrics.html)
+- [NVIDIA DCGM exporter](https://github.com/NVIDIA/dcgm-exporter)
+- [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+- [OpenTelemetry hardware/GPU semantic conventions](https://opentelemetry.io/docs/specs/semconv/hardware/)
+
+Modeled workload and tooling:
+
+- [IBM Granite 3.3 8B Instruct (IBM)](https://huggingface.co/ibm-granite/granite-3.3-8b-instruct) · [Red Hat AI distribution](https://huggingface.co/RedHatAI/granite-3.3-8b-instruct)
+- [uv](https://docs.astral.sh/uv/)
+- [Terraform Confluent provider](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs)
+
+## Trademarks
+
+Apache®, Apache Kafka®, Kafka®, Apache Flink®, and Flink® are trademarks of the
+[Apache Software Foundation](https://www.apache.org/). Confluent® is a trademark of Confluent, Inc.
+NVIDIA® and DCGM are trademarks of NVIDIA Corporation. IBM® and Granite are trademarks of IBM Corp.
+OpenTelemetry is a trademark of The Linux Foundation. All other trademarks are the property of their
+respective owners. This is an independent, unaffiliated project; use of these names does not imply
+any endorsement.
 
 ## License
 

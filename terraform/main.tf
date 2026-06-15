@@ -23,7 +23,7 @@ data "confluent_schema_registry_cluster" "sr" {
   depends_on = [confluent_kafka_cluster.demo]
 }
 
-# --- Basic Kafka cluster (single zone -- lowest cost for a demo) ---
+# --- Standard Kafka cluster (single zone -- lowest cost that supports topic-scoped RBAC) ---
 resource "confluent_kafka_cluster" "demo" {
   display_name = "gpu-efficiency"
   availability = "SINGLE_ZONE"
@@ -81,7 +81,7 @@ locals {
   ]
   # ResourceOwner scoped to each specific pipeline topic: covers create/alter/produce/consume
   # (Flink's ALTER TABLE needs ownership of the underlying topic). Still least-privilege --
-  # the service account owns only these three topics, nothing else on the cluster.
+  # the service account owns only these pipeline topics, nothing else on the cluster.
   topic_roles = ["ResourceOwner"]
   topic_role_bindings = {
     for pair in setproduct(local.pipeline_topics, local.topic_roles) :
@@ -242,8 +242,8 @@ resource "confluent_kafka_topic" "telemetry" {
 
 # ---------------------------------------------------------------------------
 # Governed schema (ADR-046 style): the canonical Avro schema is registered here
-# (Terraform is the registrant -- NOT Datagen auto-registration), and the subject
-# compatibility is pinned to BACKWARD. The Datagen Source produces the identical
+# (Terraform is the registrant -- NOT connector auto-registration), and the subject
+# compatibility is pinned to BACKWARD. The producer (uv run produce) produces the identical
 # base schema, so no incompatible re-registration occurs.
 #
 # CLI equivalent (documented in the README) -- run before `terraform apply` if you
