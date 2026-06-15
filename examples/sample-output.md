@@ -2,7 +2,7 @@
 
 > **REAL hardware results** (IBM Granite 3.3-8B on a real NVIDIA L4, vLLM + DCGM, 100% real telemetry)
 > live in the [measured case study](../case-studies/granite-3.3-8b-l4/) with the raw JSONL attached.
-> Measured efficiency frontier (concurrency sweep): **173 J/1k @ conc 32 · 311 @ 16 · 612 @ 8 · 4 653
+> Measured efficiency frontier (concurrency sweep): **173 J/1k @ conc 32 · 311 @ 16 · 611 @ 8 · 4 639
 > @ conc 1 · `NULL` (max waste) idle**. The rows below are from the **synthetic quickstart** run (real
 > pipeline output, synthetic input).
 

@@ -11,7 +11,7 @@ S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 
 > **📊 Measured case study:** this pipeline was run against a **real IBM Granite 3.3-8B Instruct
 > deployment on a real NVIDIA L4** (vLLM + NVIDIA DCGM, 100% real telemetry). Measured **efficiency
-> frontier** across a concurrency sweep: **173 J/1k tokens at concurrency 32, rising ~27× to 4 653 at
+> frontier** across a concurrency sweep: **173 J/1k tokens at concurrency 32, rising ~27× to 4 639 at
 > concurrency 1, and `NULL` (maximum waste) at idle** — see
 > [`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/) (raw data + plot + reproduction
 > included). The synthetic producer below is the **reproducible quickstart (no GPU required)**.

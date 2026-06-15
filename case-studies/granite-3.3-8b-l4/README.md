@@ -4,12 +4,8 @@
 synthetic quickstart. No synthetic values appear in this case study — every number below comes from a
 real vLLM server + NVIDIA DCGM exporter, bridged to Kafka, and the raw data is attached for audit.
 
-> Context: IBM **completed its acquisition of Confluent** on 2026-03-17
-> ([Confluent press release](https://www.confluent.io/press-release/ibm-completes-acquisition-of-confluent/),
-> [IBM newsroom, Dec 2025](https://newsroom.ibm.com/2025-12-08-ibm-to-acquire-confluent-to-create-smart-data-platform-for-enterprise-generative-ai)),
-> making "IBM Granite, served on open vLLM, governed in real time on Confluent" a first-class
-> IBM/Red Hat/Confluent story. IBM Cloud itself documents deploying
-> [granite-3.3-8b on a single L4](https://cloud.ibm.com/docs/solution-tutorials?topic=solution-tutorials-rhoai-deploy).
+> Context: this models an **IBM Granite, served on open vLLM** workload — IBM Cloud itself
+> documents deploying [granite-3.3-8b on a single NVIDIA L4](https://cloud.ibm.com/docs/solution-tutorials?topic=solution-tutorials-rhoai-deploy).
 
 ## What was measured
 
@@ -28,12 +24,12 @@ held ≥ 3.5 min) and measured the KPI two independent ways (see *Rigor*):
 
 | Concurrency | GPU util | GPU power | Throughput | **J/1k (power÷tput)** | J/1k (ΔE÷Δtok) |
 |---|---|---|---|---|---|
-| 1  | ~100 % | 71.9 W | 15 tok/s  | **4 653** | 4 071 |
-| 2  | ~100 % | 71.9 W | 30 tok/s  | **2 412** | 2 561 |
-| 4  | ~100 % | 71.9 W | 59 tok/s  | **1 221** | 1 296 |
-| 8  | ~100 % | 71.9 W | 118 tok/s | **612** | 589 |
-| 16 | ~100 % | 72.0 W | 232 tok/s | **311** | 294 |
-| 32 | ~100 % | 71.9 W | 415 tok/s | **173** | 152 |
+| 1  | ~100 % | 71.9 W | 15.5 tok/s | **4 639** | 4 071 |
+| 2  | ~100 % | 71.9 W | 29.8 tok/s | **2 413** | 2 561 |
+| 4  | ~100 % | 71.9 W | 58.9 tok/s | **1 221** | 1 296 |
+| 8  | ~100 % | 71.9 W | 117.6 tok/s | **611** | 589 |
+| 16 | ~100 % | 72.0 W | 231.6 tok/s | **311** | 294 |
+| 32 | ~100 % | 71.9 W | 415.0 tok/s | **173** | 152 |
 | idle | ~0 % | 34.9 W | 0 | **NULL** | NULL |
 
 ![Efficiency frontier](../../assets/efficiency-frontier.png)
@@ -42,7 +38,7 @@ How to read it:
 
 - **The efficiency frontier.** Batching throughput scales ~linearly (15 → 415 tok/s) while power stays
   flat at the **L4 TDP (~72 W) across every loaded level**, so energy per useful token collapses
-  **~27× (4 653 → 173 J/1k)**. Because power is constant, the frontier is essentially
+  **~27× (4 639 → 173 J/1k)**. Because power is constant, the frontier is essentially
   `J/1k ≈ TDP / throughput` — it is *throughput-driven*. That curve is the real, measured efficiency
   frontier for Granite-3.3-8B on an L4.
 - **Utilization lies; energy-per-useful-work tells the truth.** GPU utilization was **~100 % at every
