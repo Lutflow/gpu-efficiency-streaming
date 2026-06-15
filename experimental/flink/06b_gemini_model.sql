@@ -7,7 +7,7 @@ CREATE MODEL `remediation_model`
   OUTPUT (`recommendation` VARCHAR(2147483647))
   WITH (
     'provider' = 'googleai',
-    'googleai.connection' = 'gemini_connection',
+    'googleai.connection' = 'gemini-connection',
     'googleai.system_prompt' = 'You are a GPU FinOps assistant. Given a GPU efficiency anomaly (utilization, forecast bounds, flag), reply with ONE concise remediation recommendation and an estimated action. No preamble.',
     'task' = 'text_generation'
   );

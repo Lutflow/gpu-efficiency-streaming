@@ -73,9 +73,11 @@ resource "confluent_service_account" "app" {
 locals {
   # All topics this pipeline touches (source + Flink CTAS outputs).
   pipeline_topics = [
-    "gpu_telemetry",            # source (created by Terraform; produced to by Datagen; read by Flink)
-    "gpu_efficiency_anomalies", # Flink CTAS output (created + written by Flink; read by Flink/Datadog)
-    "gpu_efficiency_alerts",    # Flink CTAS output (created + written by Flink; read by S3/HTTP sinks)
+    "gpu_telemetry",                # source (produced to by the producer; read by Flink)
+    "gpu_efficiency_anomalies",     # Flink CTAS output (detect)
+    "gpu_efficiency_alerts",        # Flink CTAS output (alert rule)
+    "gpu_efficiency_forecast",      # Flink CTAS output (forecast)
+    "gpu_efficiency_capacity_risk", # Flink CTAS output (predicted idle)
   ]
   # ResourceOwner scoped to each specific pipeline topic: covers create/alter/produce/consume
   # (Flink's ALTER TABLE needs ownership of the underlying topic). Still least-privilege --
@@ -101,11 +103,11 @@ resource "confluent_role_binding" "app_topic" {
 # subjects -- no EnvironmentAdmin.
 resource "confluent_role_binding" "app_subject" {
   for_each = toset([
-    "gpu_telemetry-value",            # source value (registered by Terraform)
-    "gpu_efficiency_anomalies-value", # Flink CTAS output value subject
-    "gpu_efficiency_anomalies-key",   # key subject (DISTRIBUTED BY deployment_id)
-    "gpu_efficiency_alerts-value",    # Flink CTAS output value subject
-    "gpu_efficiency_alerts-key",      # key subject (DISTRIBUTED BY deployment_id)
+    "gpu_telemetry-value",
+    "gpu_efficiency_anomalies-value", "gpu_efficiency_anomalies-key",
+    "gpu_efficiency_alerts-value", "gpu_efficiency_alerts-key",
+    "gpu_efficiency_forecast-value", "gpu_efficiency_forecast-key",
+    "gpu_efficiency_capacity_risk-value", "gpu_efficiency_capacity_risk-key",
   ])
 
   principal   = "User:${confluent_service_account.app.id}"

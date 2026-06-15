@@ -16,12 +16,3 @@ aws_access_key_id     = "REPLACE_WITH_AWS_ACCESS_KEY_ID"
 aws_secret_access_key = "REPLACE_WITH_AWS_SECRET_ACCESS_KEY"
 s3_bucket_name        = "your-gpu-efficiency-lake-bucket"
 aws_region            = "us-east-1"
-
-# --- Optional: HTTP Sink (anomaly alerts to a webhook) ---
-enable_http_sink  = false
-alert_webhook_url = ""
-
-# --- Optional: Datadog Metrics Sink (efficiency observability) ---
-enable_datadog_sink = false
-datadog_api_key     = ""
-datadog_site        = "US"

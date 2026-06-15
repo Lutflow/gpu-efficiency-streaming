@@ -1,45 +1,29 @@
 -- 08_events.sql
--- Unified, deduplicated, append-only event stream that feeds the agentic remediation step.
--- It merges REACTIVE anomalies (detected now) with PREDICTED capacity risk (forecast ahead),
--- normalized to a common shape with a prompt-ready `summary`.
+-- Append-only stream of efficiency events that feeds the agentic remediation step.
 --
--- Why dedup BEFORE the LLM: the upstream alerts/capacity_risk are updating (retract) streams.
--- Deduplicating to one row per (deployment_id, window_start, event_type) makes this append-only
--- so Gemini is invoked exactly once per event -- avoiding duplicate calls, rate-limit, and a
--- failed (red) node in the lineage.
---
--- [VERIFY-ISOLATED] Confirm the UNION ALL + ROW_NUMBER dedup yields an append-only stream.
+-- AI_COMPLETE is a non-deterministic function and Flink only allows it over an APPEND-ONLY
+-- ('insert-only') stream -- not over the updating (retract) streams produced by the OVER-window
+-- ML functions. A TUMBLE GROUP BY aggregation is naturally append-only (one row per window,
+-- emitted once), so we derive idle-window events directly from the governed telemetry and flag
+-- the windows whose average utilization is low (idle-but-allocated GPU -- the waste we remediate).
 CREATE TABLE gpu_efficiency_events
-  DISTRIBUTED BY (`deployment_id`) INTO 1 BUCKETS
+  DISTRIBUTED BY (`deployment_id`, `window_start`) INTO 1 BUCKETS
 AS
-SELECT deployment_id, window_start, event_type, summary
+SELECT
+  deployment_id,
+  window_start,
+  'IDLE_WINDOW' AS event_type,
+  'GPU efficiency event: deployment=' || deployment_id
+    || ' avg_util=' || CAST(avg_gpu_util AS STRING)
+    || ' window=' || CAST(window_start AS STRING)
+    || ' -- idle-but-allocated GPU; recommend a remediation.' AS summary
 FROM (
   SELECT
-    deployment_id, window_start, event_type, summary,
-    ROW_NUMBER() OVER (
-      PARTITION BY deployment_id, window_start, event_type
-      ORDER BY window_start
-    ) AS rn
-  FROM (
-    SELECT
-      deployment_id,
-      window_start,
-      'REACTIVE_' || efficiency_flag AS event_type,
-      'Reactive GPU efficiency anomaly:'
-        || ' deployment=' || deployment_id
-        || ' flag=' || efficiency_flag
-        || ' avg_util=' || CAST(avg_gpu_util AS STRING)
-        || ' expected_util=' || CAST(expected_util AS STRING) AS summary
-    FROM gpu_efficiency_alerts
-    UNION ALL
-    SELECT
-      deployment_id,
-      window_start,
-      'PREDICTED_IDLE' AS event_type,
-      'Predicted GPU idle risk:'
-        || ' deployment=' || deployment_id
-        || ' predicted_util=' || CAST(predicted_util AS STRING) AS summary
-    FROM gpu_efficiency_capacity_risk
-  )
+    deployment_id,
+    window_start,
+    AVG(gpu_util_pct) AS avg_gpu_util
+  FROM TUMBLE(TABLE `gpu_telemetry`, DESCRIPTOR(`event_time`), INTERVAL '15' SECOND)
+  WHERE deployment_id = 'inference-node-a'
+  GROUP BY deployment_id, window_start
 )
-WHERE rn = 1;
+WHERE avg_gpu_util < 25;

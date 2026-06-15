@@ -16,43 +16,44 @@ infrastructure to operate.
 A large share of GPU inference spend is wasted on GPUs that are **allocated but idle**. By the time a
 nightly FinOps batch job surfaces it, the money is already gone. This pipeline flags the waste the
 moment it appears in the telemetry stream, and lands an actionable anomaly record you can route to a
-data lake, an observability platform, or an alert webhook.
+data lake or downstream consumers.
 
-The efficiency KPI it emits — `joules_per_1k_tokens`, derived from the GPU's real DCGM energy counter
-divided by useful generated tokens — is the kind of unit a platform team can put a dollar figure on.
+The efficiency KPI it emits — `joules_per_1k_tokens`, an energy-per-useful-work unit computed from a
+DCGM-style energy counter divided by generated tokens — is the kind of unit a platform team can put a
+dollar figure on. (In this demo the telemetry is a structured synthetic signal, not measured hardware
+— see *What's synthetic* below.)
 
 ## Architecture
 
-![Architecture: structured producer to Flink forecast + anomaly detection to Iceberg + Gemini remediation](assets/architecture.svg)
+![Architecture: structured producer to Flink forecast + capacity-risk and anomaly detection to S3](assets/architecture.svg)
 
 ```text
 uv run produce  →  gpu_telemetry (Avro, Schema Registry)
    │
-   ├─→ [Flink ML_FORECAST]                  → gpu_efficiency_forecast   (predict efficiency trend)
+   ├─→ [Flink ML_FORECAST]  → gpu_efficiency_forecast
+   │        → [Flink capacity rule]  → gpu_efficiency_capacity_risk (PREDICTED_IDLE) → [Amazon S3 Sink]
    │
    ├─→ [Flink TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA, STL)]
-   │        → gpu_efficiency_anomalies → [Flink alert rule] → gpu_efficiency_alerts (IDLE_WASTE / SATURATION)
-   │                                                              ├─→ [Tableflow → Iceberg]  FinOps analytics (shift-left)
-   │                                                              └─→ [Flink AI_COMPLETE (Gemini)] → gpu_efficiency_remediations
+   │        → gpu_efficiency_anomalies → [Flink alert rule] → gpu_efficiency_alerts (IDLE_WASTE / SATURATION) → [Amazon S3 Sink]
    │
-   └─→ [Amazon S3 Sink]                     raw telemetry archive (replay / training)
+   └─→ [Amazon S3 Sink]  → raw telemetry archive (replay / training)
 ```
 
-This is the Confluent 2026 flagship shape — **detect + forecast → agentic remediation → governed
-multi-sink** — and it renders in **Stream Lineage** as a tree, not a line. Every node uses a public
-Confluent capability (ML_DETECT_ANOMALIES, ML_FORECAST, AI_COMPLETE model inference, Tableflow) on the
-generic telemetry contract; nothing proprietary.
+The pipeline pairs Confluent's two built-in Flink ML functions — **`ML_DETECT_ANOMALIES`** (with
+Seasonal-Trend decomposition, `enableStl`) to flag waste *now*, and **`ML_FORECAST`** to *predict*
+low-utilization windows ahead — and lands every branch in a governed **Amazon S3** sink. It renders in
+**Stream Lineage** as a tree, not a line. Every node uses a public Confluent capability on the generic,
+standards-grounded telemetry contract; nothing proprietary.
 
 ## Run it (two commands)
 
 Prerequisites: a [Confluent Cloud](https://confluent.cloud) account, [Terraform](https://www.terraform.io/) ≥ 1.6,
-[`uv`](https://docs.astral.sh/uv/), an AWS account with an S3 bucket, and a [Google AI Studio](https://aistudio.google.com/)
-API key (for the Gemini remediation branch).
+[`uv`](https://docs.astral.sh/uv/), and an AWS account with an S3 bucket.
 
 ```bash
 # 1. Provide credentials (never committed — terraform.tfvars is gitignored)
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-$EDITOR terraform/terraform.tfvars   # Confluent + AWS + gemini_api_key
+$EDITOR terraform/terraform.tfvars   # Confluent + AWS
 
 # 2. Stand up infra + Flink statements + sinks
 uv run deploy
@@ -119,10 +120,9 @@ flink/                          # the SQL pipeline (single source of truth)
   02_detect_anomalies.sql       #   TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA + STL)
   03_alerts.sql                 #   IDLE_WASTE / SATURATION business rule
   05_forecast.sql               #   ML_FORECAST — predict the efficiency trend
-  06a_gemini_connection.sql     #   CONNECTION to Google AI (Gemini)
-  06b_gemini_model.sql          #   text-generation MODEL for remediation
-  06c_remediation.sql           #   AI_COMPLETE — agentic remediation recommendations
+  07_capacity_risk.sql          #   PREDICTED_IDLE from the forecast (next window)
 terraform/                      # all infrastructure + sinks + Flink statements
+experimental/                   # NOT deployed: an AI_COMPLETE (Gemini) remediation exploration
 tests/                          # schema + datagen + producer validation (pytest)
 ```
 

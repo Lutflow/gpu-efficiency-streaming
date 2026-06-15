@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="540" viewBox="0 0 1180 540" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="560" viewBox="0 0 1180 560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7a"/>
@@ -8,79 +8,74 @@
       .topic { fill: #fff4e5; stroke: #f5a623; stroke-width: 1.5; }
       .flink { fill: #ede7f6; stroke: #7e57c2; stroke-width: 1.5; }
       .sink { fill: #e6f4ea; stroke: #34a853; stroke-width: 1.5; }
-      .ai { fill: #fde7f3; stroke: #d81b8c; stroke-width: 1.5; }
-      .t { font-size: 13px; font-weight: 600; fill: #1f2933; }
-      .s { font-size: 10.5px; fill: #5b6b7a; }
+      .t { font-size: 12.5px; font-weight: 600; fill: #1f2933; }
+      .s { font-size: 10px; fill: #5b6b7a; }
       .flow { stroke: #5b6b7a; stroke-width: 2; fill: none; }
     </style>
   </defs>
 
   <text x="28" y="34" font-size="19" font-weight="700" fill="#1f2933">Real-Time GPU Efficiency Intelligence on Confluent Cloud</text>
-  <text x="28" y="54" class="s">detect + forecast → agentic remediation → governed multi-sink</text>
+  <text x="28" y="54" class="s">detect + forecast → predictive capacity-risk → governed S3 sinks</text>
 
   <!-- source + telemetry -->
-  <rect class="src" x="28" y="240" width="150" height="62" rx="9"/>
-  <text class="t" x="42" y="268">uv run produce</text>
-  <text class="s" x="42" y="286">structured signal</text>
+  <rect class="src" x="28" y="250" width="150" height="62" rx="9"/>
+  <text class="t" x="42" y="278">uv run produce</text>
+  <text class="s" x="42" y="296">structured signal</text>
 
-  <rect class="topic" x="214" y="240" width="140" height="62" rx="9"/>
-  <text class="t" x="228" y="268">gpu_telemetry</text>
-  <text class="s" x="228" y="286">Avro · SR governed</text>
+  <rect class="topic" x="210" y="250" width="150" height="62" rx="9"/>
+  <text class="t" x="224" y="278">gpu_telemetry</text>
+  <text class="s" x="224" y="296">Avro · SR governed</text>
 
-  <!-- branch 1: forecast -->
-  <rect class="flink" x="404" y="60" width="170" height="60" rx="9"/>
-  <text class="t" x="418" y="86">Flink ML_FORECAST</text>
-  <text class="s" x="418" y="104">predict trend (ARIMA/STL)</text>
-  <rect class="topic" x="610" y="60" width="180" height="60" rx="9"/>
-  <text class="t" x="624" y="86">gpu_efficiency_forecast</text>
+  <!-- branch 1: forecast -> capacity risk -> S3 -->
+  <rect class="flink" x="404" y="64" width="150" height="58" rx="9"/>
+  <text class="t" x="418" y="89">Flink ML_FORECAST</text>
+  <text class="s" x="418" y="107">predict next window</text>
+  <rect class="topic" x="574" y="64" width="140" height="58" rx="9"/>
+  <text class="t" x="588" y="97">…_forecast</text>
+  <rect class="flink" x="734" y="64" width="150" height="58" rx="9"/>
+  <text class="t" x="748" y="89">Flink capacity rule</text>
+  <text class="s" x="748" y="107">PREDICTED_IDLE</text>
+  <rect class="topic" x="904" y="64" width="150" height="58" rx="9"/>
+  <text class="t" x="918" y="97">…_capacity_risk</text>
+  <rect class="sink" x="904" y="146" width="150" height="56" rx="9"/>
+  <text class="t" x="918" y="172">Amazon S3</text>
+  <text class="s" x="918" y="190">capacity lake</text>
 
-  <!-- branch 2: detect -->
-  <rect class="flink" x="404" y="240" width="170" height="62" rx="9"/>
-  <text class="t" x="418" y="266">Flink TUMBLE +</text>
-  <text class="t" x="418" y="282">ML_DETECT (STL)</text>
-  <rect class="topic" x="610" y="240" width="150" height="62" rx="9"/>
-  <text class="t" x="624" y="268">…_anomalies</text>
-  <text class="s" x="624" y="286">is_anomaly + bounds</text>
-
-  <rect class="flink" x="404" y="330" width="170" height="52" rx="9"/>
-  <text class="t" x="418" y="361">Flink alert rule</text>
-  <rect class="topic" x="610" y="326" width="150" height="60" rx="9"/>
-  <text class="t" x="624" y="352">…_alerts</text>
-  <text class="s" x="624" y="370">IDLE_WASTE / SAT</text>
-
-  <!-- alerts fan-out -->
-  <rect class="sink" x="820" y="300" width="180" height="56" rx="9"/>
-  <text class="t" x="834" y="326">Tableflow → Iceberg</text>
-  <text class="s" x="834" y="344">FinOps analytics</text>
-
-  <rect class="ai" x="820" y="380" width="190" height="58" rx="9"/>
-  <text class="t" x="834" y="406">Flink AI_COMPLETE</text>
-  <text class="s" x="834" y="424">Gemini remediation</text>
-  <rect class="topic" x="1030" y="380" width="124" height="58" rx="9"/>
-  <text class="t" x="1042" y="406">…_remediations</text>
-  <text class="s" x="1042" y="424">recommend (not act)</text>
+  <!-- branch 2: detect -> alerts -> S3 -->
+  <rect class="flink" x="404" y="252" width="150" height="58" rx="9"/>
+  <text class="t" x="418" y="277">Flink TUMBLE +</text>
+  <text class="t" x="418" y="295">ML_DETECT (STL)</text>
+  <rect class="topic" x="574" y="252" width="140" height="58" rx="9"/>
+  <text class="t" x="588" y="285">…_anomalies</text>
+  <rect class="flink" x="734" y="252" width="150" height="58" rx="9"/>
+  <text class="t" x="748" y="285">Flink alert rule</text>
+  <rect class="topic" x="904" y="252" width="150" height="58" rx="9"/>
+  <text class="t" x="918" y="279">…_alerts</text>
+  <text class="s" x="918" y="297">IDLE_WASTE / SAT</text>
+  <rect class="sink" x="904" y="334" width="150" height="56" rx="9"/>
+  <text class="t" x="918" y="360">Amazon S3</text>
+  <text class="s" x="918" y="378">efficiency lake</text>
 
   <!-- branch 3: raw archive -->
-  <rect class="sink" x="404" y="450" width="200" height="56" rx="9"/>
-  <text class="t" x="418" y="476">Amazon S3 (raw archive)</text>
-  <text class="s" x="418" y="494">replay / training</text>
+  <rect class="sink" x="404" y="440" width="200" height="56" rx="9"/>
+  <text class="t" x="418" y="466">Amazon S3 (raw archive)</text>
+  <text class="s" x="418" y="484">replay / training</text>
 
   <!-- flows -->
-  <path class="flow" d="M178,271 L212,271" marker-end="url(#arrow)"/>
-  <!-- telemetry branches -->
-  <path class="flow" d="M354,255 L380,255 L380,90 L402,90" marker-end="url(#arrow)"/>
-  <path class="flow" d="M354,271 L402,271" marker-end="url(#arrow)"/>
-  <path class="flow" d="M354,287 L380,287 L380,478 L402,478" marker-end="url(#arrow)"/>
-  <!-- forecast -->
-  <path class="flow" d="M574,90 L608,90" marker-end="url(#arrow)"/>
+  <path class="flow" d="M178,281 L208,281" marker-end="url(#arrow)"/>
+  <path class="flow" d="M360,265 L382,265 L382,93 L402,93" marker-end="url(#arrow)"/>
+  <path class="flow" d="M360,281 L402,281" marker-end="url(#arrow)"/>
+  <path class="flow" d="M360,297 L382,297 L382,468 L402,468" marker-end="url(#arrow)"/>
+  <!-- forecast chain -->
+  <path class="flow" d="M554,93 L572,93" marker-end="url(#arrow)"/>
+  <path class="flow" d="M714,93 L732,93" marker-end="url(#arrow)"/>
+  <path class="flow" d="M884,93 L902,93" marker-end="url(#arrow)"/>
+  <path class="flow" d="M979,122 L979,144" marker-end="url(#arrow)"/>
   <!-- detect chain -->
-  <path class="flow" d="M574,271 L608,271" marker-end="url(#arrow)"/>
-  <path class="flow" d="M685,302 L685,326" marker-end="url(#arrow)"/>
-  <path class="flow" d="M574,356 L608,356" marker-end="url(#arrow)"/>
-  <!-- alerts fan-out -->
-  <path class="flow" d="M760,350 L790,350 L790,328 L818,328" marker-end="url(#arrow)"/>
-  <path class="flow" d="M760,366 L790,366 L790,409 L818,409" marker-end="url(#arrow)"/>
-  <path class="flow" d="M1010,409 L1028,409" marker-end="url(#arrow)"/>
+  <path class="flow" d="M554,281 L572,281" marker-end="url(#arrow)"/>
+  <path class="flow" d="M714,281 L732,281" marker-end="url(#arrow)"/>
+  <path class="flow" d="M884,281 L902,281" marker-end="url(#arrow)"/>
+  <path class="flow" d="M979,310 L979,332" marker-end="url(#arrow)"/>
 
-  <text x="28" y="528" class="s">All nodes use public Confluent capabilities (ML_DETECT_ANOMALIES, ML_FORECAST, AI_COMPLETE, Tableflow) on synthetic, standards-grounded telemetry.</text>
+  <text x="28" y="536" class="s">All nodes use public Confluent capabilities (ML_DETECT_ANOMALIES, ML_FORECAST) on synthetic, standards-grounded telemetry; nothing proprietary.</text>
 </svg>

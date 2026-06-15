@@ -11,7 +11,7 @@ security reports. We aim to acknowledge reports within 3 business days.
 
 This repository is designed to contain **zero secrets**:
 
-- All credentials (Confluent Cloud API keys, AWS keys, Datadog/webhook tokens) are supplied at
+- All credentials (Confluent Cloud API keys, AWS access keys) are supplied at
   deploy time through `terraform/terraform.tfvars` (gitignored) or `TF_VAR_*` environment variables.
 - `terraform/terraform.tfvars.example` contains **placeholders only**.
 - `.gitignore` excludes `*.tfvars` (except the `.example`), `.env`, `*.tfstate`, key material, and

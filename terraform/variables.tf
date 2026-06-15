@@ -60,38 +60,3 @@ variable "aws_region" {
   description = "AWS region of the S3 bucket."
   default     = "us-east-1"
 }
-
-# ---------------------------------------------------------------------------
-# Optional showcase sinks (disabled by default).
-# ---------------------------------------------------------------------------
-variable "enable_http_sink" {
-  type        = bool
-  description = "Deploy the HTTP Sink that POSTs each anomaly to a webhook."
-  default     = false
-}
-
-variable "alert_webhook_url" {
-  type        = string
-  description = "Webhook URL for anomaly alerts (only used when enable_http_sink = true)."
-  default     = ""
-  sensitive   = true
-}
-
-variable "enable_datadog_sink" {
-  type        = bool
-  description = "Deploy the Datadog Metrics Sink + the Flink reshape statement."
-  default     = false
-}
-
-variable "datadog_api_key" {
-  type        = string
-  description = "Datadog API key (only used when enable_datadog_sink = true)."
-  default     = ""
-  sensitive   = true
-}
-
-variable "datadog_site" {
-  type        = string
-  description = "Datadog site/domain (US, EU, ...)."
-  default     = "US"
-}
