@@ -36,7 +36,7 @@ resource "confluent_flink_statement" "add_event_time" {
     secret = confluent_api_key.app_flink.secret
   }
 
-  depends_on = [confluent_connector.datagen_source]
+  depends_on = [confluent_subject_config.telemetry_value]
 }
 
 resource "confluent_flink_statement" "set_watermark" {
@@ -120,31 +120,3 @@ resource "confluent_flink_statement" "alerts" {
   depends_on = [confluent_flink_statement.detect_anomalies]
 }
 
-resource "confluent_flink_statement" "datadog_metrics" {
-  count = var.enable_datadog_sink ? 1 : 0
-
-  organization {
-    id = data.confluent_organization.main.id
-  }
-  environment {
-    id = confluent_environment.demo.id
-  }
-  compute_pool {
-    id = confluent_flink_compute_pool.demo.id
-  }
-  principal {
-    id = confluent_service_account.app.id
-  }
-
-  statement_name = "gpu-efficiency-04-datadog-metrics"
-  statement      = file("${path.module}/../flink/04_datadog_metrics.sql")
-  properties     = local.flink_properties
-  rest_endpoint  = data.confluent_flink_region.demo.rest_endpoint
-
-  credentials {
-    key    = confluent_api_key.app_flink.id
-    secret = confluent_api_key.app_flink.secret
-  }
-
-  depends_on = [confluent_flink_statement.detect_anomalies]
-}

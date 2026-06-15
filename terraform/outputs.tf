@@ -28,3 +28,36 @@ output "stream_lineage_url" {
   description = "Open this to capture the Stream Lineage screenshot for the challenge form."
   value       = "https://confluent.cloud/environments/${confluent_environment.demo.id}/clusters/${confluent_kafka_cluster.demo.id}/stream-lineage"
 }
+
+# --- Producer credentials for `uv run produce` (sensitive) ---
+output "bootstrap_servers" {
+  description = "Kafka bootstrap endpoint for the producer."
+  value       = confluent_kafka_cluster.demo.bootstrap_endpoint
+}
+
+output "schema_registry_url" {
+  description = "Schema Registry REST endpoint for the producer."
+  value       = data.confluent_schema_registry_cluster.sr.rest_endpoint
+}
+
+output "producer_kafka_api_key" {
+  description = "Kafka API key for the producer (service account)."
+  value       = confluent_api_key.app_kafka.id
+  sensitive   = true
+}
+
+output "producer_kafka_api_secret" {
+  value     = confluent_api_key.app_kafka.secret
+  sensitive = true
+}
+
+output "producer_sr_api_key" {
+  description = "Schema Registry API key for the producer (service account)."
+  value       = confluent_api_key.app_sr.id
+  sensitive   = true
+}
+
+output "producer_sr_api_secret" {
+  value     = confluent_api_key.app_sr.secret
+  sensitive = true
+}
