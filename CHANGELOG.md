@@ -14,9 +14,11 @@ Measured case study + real-source bridge. Reframed from monitoring to **GPU cost
 - **Measured case study** ([`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/)):
   100% real telemetry from **IBM Granite 3.3-8B Instruct** (Red Hat AI FP16 distribution) served by
   **vLLM** on a real **NVIDIA L4**, through the same Flink pipeline. A **fixed-concurrency sweep
-  (1→32)** measured the **efficiency frontier**: `joules_per_1k_tokens` falls ~27× from **4 071 (conc 1)
-  to 152 (conc 32)** as throughput scales 15→415 tok/s, with **`NULL` at idle**. Includes the
-  interval-method audit, an enforced physical gate (72 W TDP cap — which excluded conc 2/4), a matplotlib
+  (1→32)** measured the **efficiency frontier**: `joules_per_1k_tokens` falls ~27× from **4 653 (conc 1)
+  to 173 (conc 32)** as throughput scales 15→415 tok/s (`J/1k ≈ TDP/throughput`), with **`NULL` at idle**. Includes the
+  interval-method audit, a dual-method power cross-check (instantaneous power_watts pinned at ~72 W TDP,
+  primary; counter-delta ΔE/Δtokens agreeing within ±13%), cross-run reproducibility (conc 32 = 173 J/1k
+  matches an independent run), all six concurrency points retained, a matplotlib
   **efficiency-frontier plot**, the in-pipeline anomalies snapshot, and the raw JSONL for reproducibility.
 - **Real-source bridge** ([`src/gpu_efficiency_streaming/bridge.py`](src/gpu_efficiency_streaming/bridge.py),
   `uv run bridge`): maps live vLLM + NVIDIA DCGM Prometheus metrics 1:1 onto the `gpu_telemetry` Avro

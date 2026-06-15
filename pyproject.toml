@@ -1,6 +1,6 @@
 [project]
 name = "gpu-efficiency-streaming"
-version = "0.1.0"
+version = "0.2.0"
 description = "Real-time GPU inference efficiency anomaly detection on Confluent Cloud (Flink + built-in ML)."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -11,6 +11,7 @@ dependencies = ["confluent-kafka[avro,schemaregistry]>=2.5", "certifi>=2024.0"]
 
 [project.optional-dependencies]
 dev = []
+analysis = ["pandas>=2.0", "matplotlib>=3.7", "jupyter>=1.0", "nbconvert>=7.0"]
 
 [project.scripts]
 deploy = "gpu_efficiency_streaming.deploy:main"
@@ -35,6 +36,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

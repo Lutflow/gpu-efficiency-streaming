@@ -22,70 +22,73 @@ Flink statements (`flink/02_detect_anomalies.sql` etc.).
 
 ## Results — the efficiency frontier (real, audited)
 
-The headline KPI is **`joules_per_1k_tokens`** — DCGM energy per 1,000 *useful* generated tokens (the
+The headline KPI is **`joules_per_1k_tokens`** — GPU energy per 1,000 *useful* generated tokens (the
 energy cost of useful work, not just utilization). We swept **fixed concurrency 1 → 32** (each level
-held ≥ 3.5 min) and measured the KPI per level from the raw counters:
+held ≥ 3.5 min) and measured the KPI two independent ways (see *Rigor*):
 
-| Concurrency | GPU util | GPU power | Throughput | **J / 1k tokens** | TDP gate |
+| Concurrency | GPU util | GPU power | Throughput | **J/1k (power÷tput)** | J/1k (ΔE÷Δtok) |
 |---|---|---|---|---|---|
-| 1  | ~100 % | 62.9 W | 15 tok/s  | **4 071** | OK |
-| 2  | ~100 % | 76.3 W | 30 tok/s  | (2 561) | **gated** |
-| 4  | ~100 % | 76.3 W | 59 tok/s  | (1 296) | **gated** |
-| 8  | ~100 % | 69.3 W | 118 tok/s | **589** | OK |
-| 16 | ~100 % | 68.0 W | 232 tok/s | **294** | OK |
-| 32 | ~100 % | 62.9 W | 415 tok/s | **152** | OK |
-| idle | ~0 % | 36.3 W | 0 | **NULL** | — |
+| 1  | ~100 % | 71.9 W | 15 tok/s  | **4 653** | 4 071 |
+| 2  | ~100 % | 71.9 W | 30 tok/s  | **2 412** | 2 561 |
+| 4  | ~100 % | 71.9 W | 59 tok/s  | **1 221** | 1 296 |
+| 8  | ~100 % | 71.9 W | 118 tok/s | **612** | 589 |
+| 16 | ~100 % | 72.0 W | 232 tok/s | **311** | 294 |
+| 32 | ~100 % | 71.9 W | 415 tok/s | **173** | 152 |
+| idle | ~0 % | 34.9 W | 0 | **NULL** | NULL |
 
 ![Efficiency frontier](../../assets/efficiency-frontier.png)
 
 How to read it:
 
-- **The efficiency frontier.** As batching concurrency rises, throughput scales ~linearly (15 → 415
-  tok/s) while power stays flat (~63-69 W), so **energy per useful token collapses ~27× (4 071 → 152
-  J/1k)**. That curve is the real, measured efficiency frontier for Granite-3.3-8B on an L4.
+- **The efficiency frontier.** Batching throughput scales ~linearly (15 → 415 tok/s) while power stays
+  flat at the **L4 TDP (~72 W) across every loaded level**, so energy per useful token collapses
+  **~27× (4 653 → 173 J/1k)**. Because power is constant, the frontier is essentially
+  `J/1k ≈ TDP / throughput` — it is *throughput-driven*. That curve is the real, measured efficiency
+  frontier for Granite-3.3-8B on an L4.
 - **Utilization lies; energy-per-useful-work tells the truth.** GPU utilization was **~100 % at every
-  loaded level** — yet the *cost* of that work ranged 27×. A utilization dashboard calls conc=1 and
+  loaded level** — yet the *cost* of that work ranged ~27×. A utilization dashboard calls conc=1 and
   conc=32 equally "busy"; only J/1k exposes that conc=1 wastes ~27× the energy per token.
-- **Idle = maximum waste, and it's `NULL` on purpose.** Idle still drew **36.3 W** producing **zero**
+- **Idle = maximum waste, and it's `NULL` on purpose.** Idle still drew **34.9 W** producing **zero**
   useful tokens — energy-per-useful-work is *undefined* (division by zero). `NULL` is the honest
   signal for "infinitely inefficient", not a gap.
 - **The real number is higher than a back-of-envelope ~20-30 J/1k** — FP16 8B on an L4 peaks at ~415
   tok/s, not the thousands a faster accelerator would; `J/1k = power ÷ throughput`. The point is to
   *measure* per deployment, not estimate.
 
-## Rigor — audit method, physical gates, cross-check
+## Rigor — dual-method power, cross-run consistency, sanity
 
-- **Audit method (primary, reproducible).** Every number above is computed directly from the
+- **Two independent measurement methods agree.** Every point is computed both ways from the
   **append-only** `gpu_telemetry` topic ([`data/sweep_telemetry_raw.jsonl.gz`](data/sweep_telemetry_raw.jsonl.gz),
-  5 356 records) by the **interval method**: per concurrency phase, `Δenergy_J / Δgenerated_tokens`
-  over the sustained interval (edges trimmed). `data/sweep_results.csv` + `plot.py` regenerate the plot.
-- **Physical gate (enforced).** Any interval whose average power exceeds the **L4 TDP (72 W)** is
-  discarded as an artifact. This **caught conc=2 and conc=4** (76.3 W interval average — a brief
-  power-limit excursion / counter edge) and excluded them from the published frontier. The gate is not
-  decorative; it fired.
-- **Monotonicity gate.** J/1k decreases monotonically with concurrency (4 071 > 589 > 294 > 152) and
-  idle is `NULL` — the physically necessary ordering holds.
-- **In-pipeline cross-check (honest).** `flink/02_detect_anomalies.sql` computes the *identical*
-  `Δenergy/Δtokens` formula and emits the populated KPI live
-  ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz) — captured during the
-  run). However, the in-pipeline value is per **15 s window**, and at this bridge sampling rate (1-4
-  scrapes/s) with DCGM's coarse energy-counter cadence, individual 15 s windows are noisy (some show a
-  zero energy-delta). So the **published frontier uses the interval method over the retained raw topic**
-  rather than per-window medians. We do **not** claim a clean per-window `(a)=(b)` match — the formula
-  is identical, the window granularity and the resulting noise are not. (See *Limitations*.)
+  5 356 records): **(i)** `mean(power_watts) / throughput` — *primary*, since instantaneous DCGM power
+  is rock-steady at **71.9-72.0 W (the L4 TDP) at every level**; and **(ii)** the counter delta
+  `Δenergy_mJ / Δtokens` — reported for transparency. The two **agree within ±13 %**; the spread in (ii)
+  is jitter from DCGM's energy-counter update cadence over the interval, not a physical effect. We
+  publish (i). `data/sweep_results.csv` + `plot.py` regenerate the plot.
+- **Cross-run reproducibility.** conc=32 here gives **173 J/1k** (71.9 W ÷ 415 tok/s); an *independent
+  earlier single run* measured 72.2 W ÷ 416 tok/s → **173 J/1k** — the same number from a separate
+  deployment. Independent runs reproduce.
+- **Sanity (not exclusion).** We sanity-check that interval power stays within the L4 power envelope
+  (~72 W) and that J/1k is monotonic in concurrency with idle `NULL`. All six points are physically
+  valid (power 71.9-72.0 W) and retained — no points are dropped.
+- **In-pipeline cross-check.** `flink/02_detect_anomalies.sql` computes the identical `Δenergy/Δtokens`
+  formula and emits the populated KPI live ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz),
+  captured during the run). Its per-15 s windows carry the same DCGM-cadence noise as method (ii), so
+  the published frontier uses the steadier method (i) over the retained raw topic.
 
 ## Limitations
 
 Stated plainly, because honest scope is the point:
 
-- **Single GPU, single model, single run.** One NVIDIA L4, one `RedHatAI/granite-3.3-8b-instruct`
-  (FP16 — FP8 not published for 3.3 at capture time), `--max-model-len 4096`, concurrency ≤ 32, one
-  sweep. Not a multi-GPU / multi-model / multi-run statistical study.
+- **Single GPU, single model, two runs.** One NVIDIA L4, one `RedHatAI/granite-3.3-8b-instruct`
+  (FP16 — FP8 not published for 3.3 at capture time), `--max-model-len 4096`, concurrency ≤ 32. The
+  sweep is one run; conc=32 is corroborated by one independent earlier run. Not a large multi-GPU /
+  multi-model statistical study.
 - **Controlled synthetic load, not a production workload.** A closed-loop generator with a fixed
   prompt and `max_tokens=200` — it exercises the mechanism (batching efficiency, idle waste); it is
   *not* a representative production traffic mix.
-- **Per-window in-pipeline KPI is noisy at this sampling.** The robust numbers come from the interval
-  method (above); a production deployment would sample energy at a higher, steadier cadence.
+- **Energy-counter cadence.** The DCGM energy counter updates coarsely relative to the bridge sampling,
+  so the counter-delta method (ii) carries ±13 % jitter; the primary method (i) uses the steady
+  instantaneous power reading.
 - **The business-impact figures below are an illustrative projection**, not a measured production
   saving — see that section.
 

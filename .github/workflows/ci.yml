@@ -22,6 +22,22 @@ jobs:
       - name: Test (pytest)
         run: uv run pytest -q
 
+  notebook:
+    name: Notebook (reproducibility)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Execute the case-study notebook on a copy (reproducibility check)
+        # Runs from the case-study dir so the notebook's data/ paths resolve; writes to a
+        # throwaway output file so the committed notebook is unchanged. Does not fail on output diffs.
+        run: |
+          cd case-studies/granite-3.3-8b-l4
+          uv run --with "jupyter,nbconvert,ipykernel,pandas,matplotlib,nbformat" \
+            jupyter nbconvert --to notebook --execute \
+            --output /tmp/analysis-ci-output.ipynb analysis.ipynb
+
   terraform:
     name: Terraform (fmt + validate)
     runs-on: ubuntu-latest
