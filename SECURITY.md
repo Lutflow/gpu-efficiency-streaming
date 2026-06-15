@@ -4,7 +4,7 @@
 
 Please report security issues privately via GitHub's
 [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
-on this repository, or by email to **<security@lutflow.dev>**. Please do not open a public issue for
+on this repository, or by email to **<oscarmatiasg@lutflow.com>**. Please do not open a public issue for
 security reports. We aim to acknowledge reports within 3 business days.
 
 ## Secrets and credentials

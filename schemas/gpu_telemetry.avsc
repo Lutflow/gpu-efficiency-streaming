@@ -2,7 +2,7 @@
   "type": "record",
   "name": "GpuInferenceTelemetry",
   "namespace": "io.lutflow.demo.v1",
-  "doc": "Per-scrape GPU inference telemetry. Every field maps 1:1 to a real, public metric from vLLM (Prometheus v1) + NVIDIA DCGM exporter + OpenTelemetry semantic conventions (GenAI + Hardware/GPU). The data in this demo is SYNTHETIC (Datagen Source); the production source is an OpenTelemetry Collector / Prometheus->Kafka bridge emitting the same schema, so the pipeline is unchanged. This subset contains only standards-grounded fields and nothing proprietary.",
+  "doc": "Per-scrape GPU inference telemetry. Every field maps 1:1 to a real, public metric from vLLM (Prometheus v1) + NVIDIA DCGM exporter + OpenTelemetry semantic conventions (GenAI + Hardware/GPU). The data in this demo is SYNTHETIC (synthetic structured producer; see produce.py); the production source is an OpenTelemetry Collector / Prometheus->Kafka bridge emitting the same schema, so the pipeline is unchanged. This subset contains only standards-grounded fields and nothing proprietary.",
   "fields": [
     {"name": "deployment_id",           "type": "string", "doc": "OTel resource: service.instance.id. Generic identifier of an inference deployment."},
     {"name": "model_id",                "type": "string", "doc": "OTel gen_ai.request.model. Generic model name."},

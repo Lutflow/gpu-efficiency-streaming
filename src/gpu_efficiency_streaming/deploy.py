@@ -93,7 +93,10 @@ def main(argv: list[str] | None = None) -> int:
     print("Deployment complete.")
     if lineage:
         print(f"Stream Lineage (screenshot this for the challenge form):\n  {lineage}")
-    print("Allow ~5 minutes for ML_DETECT_ANOMALIES to warm up (minTrainingSize=20).")
+    print(
+        "Allow ~7-8 minutes for ML_DETECT_ANOMALIES to warm up "
+        "(minTrainingSize=30, enableStl, m=12); ML_FORECAST starts a little later."
+    )
     print("Tear everything down with:  uv run destroy")
     print("=" * 70)
     return 0
