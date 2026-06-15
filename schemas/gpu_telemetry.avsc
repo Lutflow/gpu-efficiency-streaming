@@ -1,0 +1,31 @@
+{
+  "type": "record",
+  "name": "GpuInferenceTelemetry",
+  "namespace": "io.lutflow.demo.v1",
+  "doc": "Per-scrape GPU inference telemetry. Every field maps 1:1 to a real, public metric from vLLM (Prometheus v1) + NVIDIA DCGM exporter + OpenTelemetry semantic conventions (GenAI + Hardware/GPU). The data in this demo is SYNTHETIC (Datagen Source); the production source is an OpenTelemetry Collector / Prometheus->Kafka bridge emitting the same schema, so the pipeline is unchanged. This subset contains only standards-grounded fields and nothing proprietary.",
+  "fields": [
+    {"name": "deployment_id",           "type": "string", "doc": "OTel resource: service.instance.id. Generic identifier of an inference deployment."},
+    {"name": "model_id",                "type": "string", "doc": "OTel gen_ai.request.model. Generic model name."},
+    {"name": "gpu_uuid",                "type": "string", "doc": "DCGM label gpu_uuid / OTel hw.id."},
+    {"name": "gpu_model",               "type": "string", "doc": "DCGM modelName / OTel hw.name (e.g. NVIDIA L4)."},
+    {"name": "ts",                      "type": "long", "doc": "Scrape timestamp as epoch milliseconds (UTC). Kept as a plain long so Flink can convert it to event time with TO_TIMESTAMP_LTZ(ts, 3) (a logicalType is intentionally NOT used: it must not depend on the Datagen connector preserving it)."},
+
+    {"name": "gpu_util_pct",            "type": "double", "doc": "DCGM_FI_DEV_GPU_UTIL / OTel hw.gpu.utilization (0-100)."},
+    {"name": "sm_active_ratio",         "type": "double", "doc": "DCGM_FI_PROF_SM_ACTIVE - streaming-multiprocessor occupancy (0-1)."},
+    {"name": "tensor_active_ratio",     "type": "double", "doc": "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE - Tensor Core activity (0-1)."},
+    {"name": "dram_active_ratio",       "type": "double", "doc": "DCGM_FI_PROF_DRAM_ACTIVE - memory-bandwidth utilization (0-1)."},
+    {"name": "fb_used_mib",             "type": "double", "doc": "DCGM_FI_DEV_FB_USED - framebuffer / VRAM used (MiB)."},
+    {"name": "power_watts",             "type": "double", "doc": "DCGM_FI_DEV_POWER_USAGE / OTel hw.power (W; e.g. L4 TDP ~72W)."},
+    {"name": "energy_mj",               "type": "long",   "doc": "DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION / OTel hw.energy (mJ, monotonic counter)."},
+    {"name": "temp_celsius",            "type": "double", "doc": "DCGM_FI_DEV_GPU_TEMP / OTel hw.temperature (C)."},
+
+    {"name": "num_requests_running",    "type": "int",    "doc": "vllm:num_requests_running."},
+    {"name": "num_requests_waiting",    "type": "int",    "doc": "vllm:num_requests_waiting."},
+    {"name": "kv_cache_usage_perc",     "type": "double", "doc": "vllm:kv_cache_usage_perc (0-1)."},
+    {"name": "prompt_tokens_total",     "type": "long",   "doc": "vllm:prompt_tokens_total (monotonic counter)."},
+    {"name": "generation_tokens_total", "type": "long",   "doc": "vllm:generation_tokens_total (monotonic counter)."},
+    {"name": "ttft_seconds",            "type": "double", "doc": "vllm:time_to_first_token_seconds / OTel gen_ai.server.time_to_first_token (window mean)."},
+    {"name": "inter_token_latency_s",   "type": "double", "doc": "vllm:inter_token_latency_seconds (TPOT) / OTel gen_ai.server.time_per_output_token."},
+    {"name": "e2e_latency_seconds",     "type": "double", "doc": "vllm:e2e_request_latency_seconds / OTel gen_ai.server.request.duration."}
+  ]
+}
