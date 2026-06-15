@@ -142,6 +142,19 @@ Flink/ML/Sink pipeline stay identical** — that is what makes this translation-
 | `inter_token_latency_s` (TPOT) | `vllm:inter_token_latency_seconds` | — | `gen_ai.server.time_per_output_token` |
 | `e2e_latency_seconds` | `vllm:e2e_request_latency_seconds` | — | `gen_ai.server.request.duration` |
 
+## Example output
+
+Real records captured from a live run — see [`examples/sample-output.md`](examples/sample-output.md).
+A representative `gpu_efficiency_alerts` row:
+
+```json
+{"window_start": "2026-06-15T10:21:30-04:00", "avg_gpu_util": 7.33, "expected_util": 51.21, "lower_bound": 12.96, "upper_bound": 89.47, "is_anomaly": true, "efficiency_flag": "IDLE_WASTE"}
+```
+
+Read it as: measured `avg_gpu_util = 7.33` while ARIMA expected `≈ 51.2` (normal range `[12.96, 89.47]`)
+— below the lower bound, so an allocated-but-idle GPU is flagged `IDLE_WASTE`. The forecast branch
+emits the same shape ahead of time as `PREDICTED_IDLE` in `gpu_efficiency_capacity_risk`.
+
 ## Repository layout
 
 ```text
@@ -160,6 +173,7 @@ flink/                          # the SQL pipeline (single source of truth)
   07_capacity_risk.sql          #   PREDICTED_IDLE from the forecast (next window)
 terraform/                      # all infrastructure + sinks + Flink statements
 experimental/                   # NOT deployed: an AI_COMPLETE (Gemini) remediation exploration
+examples/                       # real captured ML output (examples/sample-output.md)
 tests/                          # schema + datagen + producer validation (pytest)
 ```
 
