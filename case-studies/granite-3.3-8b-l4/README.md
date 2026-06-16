@@ -252,9 +252,9 @@ the same $0.8508/hr node, cost-per-useful-work mirrors the energy frontier:
 |---|---|---|
 | Throughput | 415 tok/s | 481.6 tok/s |
 | **$ / 1M tokens (at peak batching)** | **≈ $0.57** | **≈ $0.49** |
-| $ / 1M tokens (conc=1, under-batched) | ≈ $15.8 | ≈ $13.3 |
+| $ / 1M tokens (conc=1, under-batched) | ≈ $15.3 | ≈ $13.3 |
 
-So the same dollar buys ~**28× more useful tokens** at peak batching than under-batched — the cost
+So the same dollar buys ~**27× more useful tokens** at peak batching than under-batched — the cost
 frontier *is* the energy frontier. (Per-1M-token figures = `price_per_hr / (tok/s × 3600) × 1e6`; the
 notebook recomputes them from the committed data.)
 

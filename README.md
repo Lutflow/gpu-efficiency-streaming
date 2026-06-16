@@ -47,14 +47,20 @@ dollar figure on. (In this demo the telemetry is a structured synthetic signal, 
 
 ![Architecture: structured producer to Flink forecast + capacity-risk and anomaly detection to S3](assets/architecture.svg)
 
+*The SVG shows the core branches; the **full closed loop** (waste detector → rule-based remediation)
+is in the ASCII diagram below and walked through component-by-component in
+[`pipeline/PIPELINE.md`](pipeline/PIPELINE.md).*
+
 ```text
 uv run produce  →  gpu_telemetry (Avro, Schema Registry)
    │
    ├─→ [Flink ML_FORECAST]  → gpu_efficiency_forecast
    │        → [Flink capacity rule]  → gpu_efficiency_capacity_risk (PREDICTED_IDLE) → [Amazon S3 Sink]
    │
-   ├─→ [Flink TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA, STL)]
-   │        → gpu_efficiency_anomalies → [Flink alert rule] → gpu_efficiency_alerts (IDLE_WASTE / SATURATION) → [Amazon S3 Sink]
+   ├─→ [Flink TUMBLE 15s + ML_DETECT_ANOMALIES (ARIMA, STL)]  → gpu_efficiency_anomalies
+   │        ├─→ [Flink alert rule] → gpu_efficiency_alerts (IDLE_WASTE / SATURATION) → [Amazon S3 Sink]
+   │        └─→ [08 waste detector: high util / low useful tput] → gpu_efficiency_waste
+   │        alerts ∪ waste → [09 rule-based remediation, no LLM] → gpu_remediation
    │
    └─→ [Amazon S3 Sink]  → raw telemetry archive (replay / training)
 ```
@@ -65,20 +71,30 @@ low-utilization windows ahead — and lands every branch in a governed **Amazon 
 **Stream Lineage** as a tree, not a line. Every node uses a public Confluent capability on the generic,
 standards-grounded telemetry contract; nothing proprietary.
 
+The detection path **closes a loop**: a cheap deterministic waste detector (`08`, high utilization but
+low *useful* throughput) joins the idle/saturation alerts, and a **rule-based remediation recommender**
+(`09`, no LLM) turns them into a `recommended_action` per deployment — see the live walkthrough in
+[`pipeline/PIPELINE.md`](pipeline/PIPELINE.md) and the measured
+[case study](case-studies/granite-3.3-8b-l4/README.md).
+
 ## Agent-ready
 
 The pipeline emits **governed, structured signals** rather than dashboards: anomaly records from
-`ML_DETECT_ANOMALIES` (waste happening *now*) and predictive `capacity_risk` records from
-`ML_FORECAST` (waste *about to* happen). These are exactly the inputs a **Confluent Streaming Agent**
-would consume to drive **agentic investigation & remediation** — correlating the signal, deciding an
-action (rightsize, consolidate, alert an owner), and writing the outcome back as another governed
-stream.
+`ML_DETECT_ANOMALIES` (waste happening *now*), predictive `capacity_risk` records from `ML_FORECAST`
+(waste *about to* happen), and a `08` waste detector (high utilization, low *useful* throughput).
 
-This repo is **agent-ready, not an agent**: no LLM is deployed in the live pipeline. An exploration of
-in-stream remediation with Flink's `AI_COMPLETE` (Gemini) lives in [`experimental/`](experimental/),
-documented honestly — it is not deployed because `AI_COMPLETE` is non-deterministic and Flink rejects
-it over the changelog streams this pipeline produces. A production agent would use Confluent
-**Streaming Agents** for that step.
+**The loop already closes today.** A **deterministic, rule-based remediation recommender**
+(`09_remediation.sql`, **no LLM**) consumes the alerts ∪ waste streams and emits a `recommended_action`
+plus an *illustrative* reclaimable-$ figure per deployment, written back as another governed stream —
+reference-aligned with the **Confluent Streaming Agents** pattern (rightsize, consolidate, scale out,
+alert an owner).
+
+**No LLM is deployed in the live pipeline** — the recommender is deterministic on purpose (auditable,
+cheap, reproducible). The natural upgrade — an in-stream `AI_COMPLETE` (or a full Streaming Agent) that
+*reasons* over an alert plus deployment context — remains **roadmap**: an honest exploration with
+Flink's `AI_COMPLETE` (Gemini) lives in [`experimental/`](experimental/), not deployed because
+`AI_COMPLETE` is non-deterministic and Flink rejects it over the changelog streams this pipeline
+produces. A production upgrade would use Confluent **Streaming Agents** for that step.
 
 ## Cost & region
 
@@ -88,6 +104,11 @@ Flink ML functions (`ML_DETECT_ANOMALIES`, `ML_FORECAST`) are billed in **CFUs**
 usage. **Run [`uv run destroy`](#run-it-two-commands) as soon as you're done** to stop the meter. See
 [Confluent Cloud pricing](https://www.confluent.io/confluent-cloud/pricing/) and
 [Flink billing](https://docs.confluent.io/cloud/current/flink/concepts/billing.html).
+
+The full closed loop runs **six Flink statements** (detect, alerts, forecast, capacity-risk, waste,
+remediation), so the compute pool is sized at **`max_cfu = 10`** (more CFUs than the base detect/forecast
+set) — the meter is correspondingly higher, which is one more reason to **tear down promptly** after a
+run.
 
 A **Standard** cluster is required — Basic does not support the topic-scoped RBAC this project uses
 ([cluster types](https://docs.confluent.io/cloud/current/clusters/cluster-types.html)). Deploy in a
