@@ -27,6 +27,9 @@ WITH windowed AS (
     AVG(num_requests_running)                                      AS avg_running,
     -- Counter deltas within the window. Valid because this is a single deployment / single stream:
     (MAX(generation_tokens_total) - MIN(generation_tokens_total))  AS gen_tokens_win,
+    -- Prompt (prefill) tokens within the window -- so downstream "useful work" can count
+    -- prefill + decode (goodput-style), not generation alone (see flink/08 + README Related work).
+    (MAX(prompt_tokens_total) - MIN(prompt_tokens_total))          AS prompt_tokens_win,
     -- CAST to DOUBLE: the chained DECIMAL division (energy/1000 then / tokens) otherwise
     -- overflows DECIMAL(38) precision and Flink returns NULL for the KPI. DOUBLE avoids it.
     CAST(MAX(energy_mj) - MIN(energy_mj) AS DOUBLE) / 1000.0        AS energy_joules_win
@@ -39,6 +42,7 @@ SELECT
   window_start,
   avg_gpu_util,
   gen_tokens_win,
+  prompt_tokens_win,
   -- Energy-efficiency KPI: DCGM energy (joules) per 1k useful generated tokens.
   -- DOUBLE throughout so the division never hits DECIMAL precision overflow (which emits NULL).
   energy_joules_win / NULLIF(CAST(gen_tokens_win AS DOUBLE), 0.0) * 1000.0   AS joules_per_1k_tokens,

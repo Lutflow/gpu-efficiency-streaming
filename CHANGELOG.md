@@ -5,6 +5,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-16
+
+Correctness hardening + honest positioning. **No floor regression** — additive to the measured study.
+
+### Changed
+
+- **Useful work now includes prefill.** The efficiency frontier is recomputed with useful throughput =
+  `prompt_tokens + generation_tokens` (goodput-style accounting), not generation alone, via the new
+  reproducible [`recompute_frontier.py`](case-studies/granite-3.3-8b-l4/recompute_frontier.py).
+  Including prefill lowers every J/1k ~10 % while the ~27× batching span is unchanged
+  (Granite **4 192 → 154 J/1k**; Mistral **3 552 → 135**). Plots, tables, notebook, unit economics and
+  the README callout updated accordingly.
+- **Honest dual-method framing.** `power_watts` is measured flat at the L4 TDP under load, so the
+  frontier is **throughput-dominated**; the independent counter-delta method is shown to run **~5-20 %
+  above** the power method (previously described as a symmetric ±13 %), and the short conc=32 counter
+  point is omitted as too short for the coarse DCGM energy counter.
+
+### Added
+
+- **Related work & positioning** — explicit statement that the metric and the "utilization lies"
+  finding are **not novel** (MFU/MBU, ML Productivity Goodput, energy-per-token, AI Energy Score /
+  ML.ENERGY), with the project's delta being *online, in-data-plane governance*. Plus a **build-vs-buy**
+  table vs **Kubecost / OpenCost**, and a measurement caveat citing the DCGM/nvidia-smi sampling
+  literature (arXiv:2312.02741).
+
+### Fixed
+
+- **Prefill-aware waste detector.** `flink/08_waste_high_util.sql` now measures useful (prefill +
+  decode) tokens and guards against prefill-heavy / long-context windows, so big-prompt requests are
+  no longer false-flagged as waste (`flink/02` exposes `prompt_tokens_win` for this).
+
 ## [0.3.0] - 2026-06-15
 
 Comparative study + live-pipeline evidence.
@@ -70,6 +101,7 @@ Initial release — real-time GPU efficiency anomaly detection and forecasting o
   exploration, documented honestly and **not deployed** (Flink determinism constraint over changelog
   streams).
 
+[0.4.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.1.0

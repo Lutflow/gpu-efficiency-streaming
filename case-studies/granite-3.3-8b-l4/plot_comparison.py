@@ -25,7 +25,7 @@ def load(name):
     rows = []
     with open(HERE / "data" / name) as fh:
         for r in csv.DictReader(fh):
-            rows.append((int(r["concurrency"]), float(r["throughput_tok_s"]), float(r["j_per_1k"])))
+            rows.append((int(r["concurrency"]), float(r["useful_tok_s"]), float(r["j_per_1k"])))
     rows.sort(key=lambda x: x[1])
     return rows
 
@@ -41,7 +41,7 @@ def main() -> None:
         for conc, t, j in rows:
             ax.annotate(f"{conc}", (t, j), textcoords="offset points",
                         xytext=(5, 5), fontsize=8, color=color)
-    ax.set_xlabel("Throughput (generated tokens / s)")
+    ax.set_xlabel("Useful throughput (prompt + generation tokens / s)")
     ax.set_ylabel("Energy per useful work (J / 1k tokens)")
     ax.set_title("Efficiency frontier on one NVIDIA L4 — Granite-3.3-8B vs Model B (measured)")
     ax.grid(True, alpha=0.3)

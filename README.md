@@ -11,11 +11,14 @@ S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 
 > **📊 Measured case study:** real **IBM Granite-3.3-8B on a real NVIDIA L4** (vLLM + NVIDIA DCGM,
 > 100% real telemetry). **At ~100% GPU utilization throughout, energy/cost-per-useful-token still
-> varied ~27× across batching regimes** — 173 J/1k @ concurrency 32 → 4 639 @ concurrency 1, and
-> `NULL` (infinite cost-per-work) at idle. **Why it matters:** at ~$0.85/GPU-hr, a 10×L4 fleet running
-> ~30% idle/under-batched wastes **≈ $1.9k/month** (illustrative); this pipeline flags it in **~8 min**
-> (the next Flink window) — not the next daily FinOps batch. See
+> varied ~27× across batching regimes** — 154 J/1k @ concurrency 32 → 4 192 @ concurrency 1 (useful =
+> prefill + decode tokens), and `NULL` (infinite cost-per-work) at idle. Power sat **flat at the L4 TDP
+> (~72 W)**, so the frontier is **throughput-dominated**. **Why it matters:** at ~$0.85/GPU-hr, a 10×L4
+> fleet running ~30% idle/under-batched wastes **≈ $1.9k/month** (illustrative); this pipeline flags it
+> in **~8 min** (the next Flink window) — not the next daily FinOps batch. See
 > [`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/) (raw data + plot + reproduction).
+> The metric and the "utilization lies" finding are **not novel** (MFU/goodput/energy-per-token — see
+> the case study's *Related work*); what we add is governing them **online, in the data plane**.
 > The synthetic producer below is the **reproducible quickstart (no GPU required)**.
 
 **📓 Technical + business lab notebook:** [`case-studies/granite-3.3-8b-l4/analysis.ipynb`](case-studies/granite-3.3-8b-l4/analysis.ipynb)
@@ -24,7 +27,7 @@ outputs, reproducible offline from the committed data.
 
 **🔬 Comparative study:** the same L4 sweep was also run on **Mistral-7B-Instruct-v0.3** — see the
 [comparison](case-studies/granite-3.3-8b-l4/#comparison--granite-33-8b-vs-mistral-7b-instruct-v03-on-the-same-l4)
-(Mistral-7B ~12-14% lower J/1k; smaller model → higher throughput at the same ~72 W).
+(Mistral-7B ~12-15% lower J/1k; smaller model → higher useful throughput at the same ~72 W).
 
 **📐 Pipeline walkthrough:** [`pipeline/PIPELINE.md`](pipeline/PIPELINE.md) — a component-by-component
 tour with **live screenshots** (Stream Lineage closed loop, each Flink statement, the S3 connector,

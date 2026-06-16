@@ -35,68 +35,122 @@ misleading cost signal; energy-per-useful-work is the honest one.**
 
 ## Related work & positioning
 
-- **[GuideLLM](https://github.com/vllm-project/guidellm)** (Red Hat / vLLM) and **[MLPerf
-  Inference](https://mlcommons.org/benchmarks/inference-datacenter/)** (incl. the MLPerf Power
-  methodology) benchmark serving throughput/latency — and power — **offline**, as a one-shot
-  characterization run.
-- **[NVIDIA DCGM](https://github.com/NVIDIA/DCGM)** exposes the energy/power counters this project
-  consumes.
-- **Delta:** those tools *characterize* a deployment offline. This project does **online, per-deployment
-  cost governance in the data plane** — the same energy-per-useful-work KPI computed continuously over
-  governed streams, with detection, forecasting, and a closed remediation loop, across a fleet. It is
-  complementary to (not a replacement for) offline benchmarking: benchmark once with GuideLLM/MLPerf;
-  *govern continuously* here.
+**We did not invent this metric, nor the "utilization lies" finding — and we say so plainly.** Both are
+established in the literature; our contribution is *operationalizing* them online, in the data plane.
+
+- **"Utilization is misleading" is a known result.** Model FLOPs / Bandwidth Utilization (MFU/MBU) are
+  the accepted "useful work" metrics, and inference typically runs at only **~5-15 % MFU** because it is
+  memory-bandwidth bound ([zettabyte — *Measuring useful GPU work with MFU and MBU*](https://www.zettabyte.space/blog/gpu-utilization-mfu-mbu)).
+  Google's **ML Productivity Goodput** explicitly targets *"the insufficiency of utilization-based
+  metrics"* across a TPU fleet ([arXiv:2502.06982](https://arxiv.org/abs/2502.06982)).
+- **"Energy per token" is an established metric.** It has been proposed independently as a first-class
+  efficiency metric ([*Advocating Energy-per-Token in LLM Inference*, arXiv:2603.20224](https://arxiv.org/abs/2603.20224)),
+  and there are public leaderboards/benchmarks for it: **Hugging Face AI Energy Score**
+  ([huggingface.github.io/AIEnergyScore](https://huggingface.github.io/AIEnergyScore)) and the
+  **ML.ENERGY** benchmark ([arXiv:2505.06371](https://arxiv.org/abs/2505.06371)).
+- **"Useful work" = goodput.** Counting prefill + decode (not generation alone) follows the serving
+  community's **goodput** notion of useful, SLO-bounded throughput
+  ([*Revisiting SLO and Goodput Metrics in LLM Serving*, arXiv:2410.14257](https://arxiv.org/abs/2410.14257)).
+- **GPU-cost idle detection + recommendations already ship.** **Kubecost** (GPU Optimization) and
+  **OpenCost** detect idle/under-used GPU spend and recommend savings — on the *same* NVIDIA DCGM sensor
+  this project consumes ([Kubecost GPU Optimization](https://docs.kubecost.com/using-kubecost/navigating-the-kubecost-ui/savings/gpu-optimization)
+  · [OpenCost](https://github.com/opencost/opencost)).
+- **Offline benchmarking** of serving throughput/power is well covered by **GuideLLM**
+  ([github.com/vllm-project/guidellm](https://github.com/vllm-project/guidellm)) and MLPerf Inference.
+
+**Our delta (honest):** we **operationalize these recognized metrics (MFU/goodput/energy-per-token) in
+the data plane** — computed *online, per deployment, over schema-governed streams, multi-deployment,
+with a closed real-time action loop* — rather than as an offline benchmark or a periodic FinOps batch.
+The finding and the metric are not ours; the *streaming governance pattern* is what we demonstrate.
+
+### Build vs buy — when does the streaming approach earn its place?
+
+| | Kubecost / OpenCost + DCGM + Grafana | This project (Confluent Flink) |
+|---|---|---|
+| GPU idle / under-use detection | ✅ mature, production-grade | ✅ same DCGM signal |
+| Cost allocation & chargeback | ✅ rich (k8s-native) | ➖ not the focus |
+| Latency to signal | minutes–hours (scrape/batch) | **next Flink window (~seconds)** |
+| Schema-governed telemetry contract | ➖ Prometheus labels | ✅ **Schema Registry (BACKWARD)** |
+| Multi-cloud / non-k8s deployments | ➖ k8s-centric | ✅ **anything that can produce to Kafka** |
+| Lineage / audit of the cost signal | ➖ limited | ✅ **Stream Lineage** |
+| Real-time **action loop** (detect→recommend→act) | ➖ dashboards/alerts | ✅ **in-pipeline remediation stream** |
+| Maturity / ecosystem | ✅ established | ➖ Flink ML functions are recent (see *Roadmap*) |
+| Operating cost | Prometheus/k8s overhead | **billed in CFUs** (6-statement loop ⇒ `max_cfu=10`) |
+
+**Honest verdict:** for k8s cost allocation on a single cluster, the incumbents are the pragmatic
+choice. The streaming approach wins when you need **governed, sub-window, multi-deployment cost
+governance with an action loop** feeding downstream agents — and you accept the Flink-ML maturity and
+CFU cost trade-offs.
 
 ## Results — the efficiency frontier (real, audited)
 
-The headline KPI is **`joules_per_1k_tokens`** — GPU energy per 1,000 *useful* generated tokens (the
-energy cost of useful work, not just utilization). We swept **fixed concurrency 1 → 32** (each level
-held ≥ 3.5 min) and measured the KPI two independent ways (see *Rigor*):
+The headline KPI is **`joules_per_1k_tokens`** — GPU energy per 1,000 *useful* tokens. **"Useful" now
+counts `prompt_tokens + generation_tokens`** (prefill + decode), not generation alone — i.e. all the
+tokens the GPU actually processed, the standard *goodput*-style accounting (see *Related work*). We
+swept **fixed concurrency 1 → 32** (each level held ≥ 3.5 min) and measured the KPI two independent
+ways (see *Rigor*). The frontier is **recomputed offline** by
+[`recompute_frontier.py`](recompute_frontier.py) from the committed raw telemetry:
 
-| Concurrency | GPU util | GPU power | Throughput | **J/1k (power÷tput)** | J/1k (ΔE÷Δtok) |
+| Concurrency | GPU util | GPU power | Useful throughput | **J/1k (power÷tput)** | J/1k (ΔE÷Δtok) |
 |---|---|---|---|---|---|
-| 1  | ~100 % | 71.9 W | 15.5 tok/s | **4 639** | 4 071 |
-| 2  | ~100 % | 71.9 W | 29.8 tok/s | **2 413** | 2 561 |
-| 4  | ~100 % | 71.9 W | 58.9 tok/s | **1 221** | 1 296 |
-| 8  | ~100 % | 71.9 W | 117.6 tok/s | **611** | 589 |
-| 16 | ~100 % | 72.0 W | 231.6 tok/s | **311** | 294 |
-| 32 | ~100 % | 71.9 W | 415.0 tok/s | **173** | 152 |
+| 1  | ~100 % | 71.9 W | 17.2 tok/s  | **4 192** | 4 614 |
+| 2  | ~100 % | 71.9 W | 33.1 tok/s  | **2 173** | 2 507 |
+| 4  | ~100 % | 71.9 W | 66.1 tok/s  | **1 089** | 1 301 |
+| 8  | ~100 % | 71.9 W | 130.5 tok/s | **551** | 640 |
+| 16 | ~100 % | 72.0 W | 256.9 tok/s | **280** | 333 |
+| 32 | ~100 % | 71.9 W | 466.1 tok/s | **154** | — (window too short) |
 | idle | ~0 % | 34.9 W | 0 | **NULL** | NULL |
+
+*(Useful throughput counts prompt + generation tokens; the generation-only throughput and the
+generation-only J/1k are also in [`data/sweep_results.csv`](data/sweep_results.csv) for comparison —
+e.g. conc=32 is 414.8 gen tok/s → 173 J/1k generation-only.)*
 
 ![Efficiency frontier](../../assets/efficiency-frontier.png)
 
 How to read it:
 
-- **The efficiency frontier.** Batching throughput scales ~linearly (15 → 415 tok/s) while power stays
-  flat at the **L4 TDP (~72 W) across every loaded level**, so energy per useful token collapses
-  **~27× (4 639 → 173 J/1k)**. Because power is constant, the frontier is essentially
-  `J/1k ≈ TDP / throughput` — it is *throughput-driven*. That curve is the real, measured efficiency
-  frontier for Granite-3.3-8B on an L4.
-- **Utilization lies; energy-per-useful-work tells the truth.** GPU utilization was **~100 % at every
+- **The cost is throughput-dominated.** `power_watts` was **measured flat at the L4 TDP (~71.9-72.0 W)
+  at every loaded level, including conc=1** — so `J/1k ≈ TDP / useful-throughput`. Useful throughput
+  scales ~linearly with batching (17 → 466 tok/s), so energy per useful token collapses **~27×
+  (4 192 → 154 J/1k)**. The driver of the frontier is **throughput (batching), not a swing in power** —
+  we say this explicitly rather than implying an independent energy effect.
+- **Utilization lies; cost-per-useful-work tells the truth.** GPU utilization was **~100 % at every
   loaded level** — yet the *cost* of that work ranged ~27×. A utilization dashboard calls conc=1 and
-  conc=32 equally "busy"; only J/1k exposes that conc=1 wastes ~27× the energy per token.
+  conc=32 equally "busy"; only J/1k exposes that conc=1 costs ~27× the energy per useful token. (This is
+  a known result — MFU/goodput literature, see *Related work* — made precise and auditable here.)
 - **Idle = maximum waste, and it's `NULL` on purpose.** Idle still drew **34.9 W** producing **zero**
   useful tokens — energy-per-useful-work is *undefined* (division by zero). `NULL` is the honest
   signal for "infinitely inefficient", not a gap.
-- **The real number is higher than a back-of-envelope ~20-30 J/1k** — FP16 8B on an L4 peaks at ~415
-  tok/s, not the thousands a faster accelerator would; `J/1k = power ÷ throughput`. The point is to
-  *measure* per deployment, not estimate.
+- **Including prefill lowered every J/1k ~10 % vs a generation-only count** (e.g. conc=32: 154 vs 173)
+  but left the ~27× batching span unchanged — prefill is a roughly constant fraction (~10-12 %) of work
+  across the sweep. We report the prefill-inclusive number as primary because it is the more honest
+  measure of useful work.
 
 ## Rigor — dual-method power, cross-run consistency, sanity
 
-- **Two independent measurement methods agree.** Every point is computed both ways from the
-  **append-only** `gpu_telemetry` topic ([`data/sweep_telemetry_raw.jsonl.gz`](data/sweep_telemetry_raw.jsonl.gz),
-  5 356 records): **(i)** `mean(power_watts) / throughput` — *primary*, since instantaneous DCGM power
-  is rock-steady at **71.9-72.0 W (the L4 TDP) at every level**; and **(ii)** the counter delta
-  `Δenergy_mJ / Δtokens` — reported for transparency. The two **agree within ±13 %**; the spread in (ii)
-  is jitter from DCGM's energy-counter update cadence over the interval, not a physical effect. We
-  publish (i). `data/sweep_results.csv` + `plot.py` regenerate the plot.
-- **Cross-run reproducibility.** conc=32 here gives **173 J/1k** (71.9 W ÷ 415 tok/s); an *independent
-  earlier single run* measured 72.2 W ÷ 416 tok/s → **173 J/1k** — the same number from a separate
-  deployment. Independent runs reproduce.
-- **Sanity (not exclusion).** We sanity-check that interval power stays within the L4 power envelope
-  (~72 W) and that J/1k is monotonic in concurrency with idle `NULL`. All six points are physically
-  valid (power 71.9-72.0 W) and retained — no points are dropped.
+- **Two independent measurement methods, reported honestly.** Every point is computed both ways from
+  the **append-only** `gpu_telemetry` topic
+  ([`data/sweep_telemetry_raw.jsonl.gz`](data/sweep_telemetry_raw.jsonl.gz), 5 356 records):
+  **(i)** `mean(power_watts) / useful-throughput` — *primary*, since instantaneous DCGM power is
+  rock-steady at **71.9-72.0 W (the L4 TDP) at every level**; and **(ii)** the counter delta
+  `Δenergy_mJ / Δtokens`, computed between energy-counter update instants. The two **agree in shape and
+  order of magnitude**, but method (ii) runs **~5-20 % above** method (i) (median ~16 %) — the DCGM
+  energy counter integrates short power transients that the 1/s instantaneous sampling under-counts, so
+  (ii) is effectively a slightly higher, independent bound. We **publish (i)** and show (ii) as the
+  independent cross-check rather than averaging them. `recompute_frontier.py` regenerates both.
+- **Measurement caveat (be explicit).** GPU power/energy telemetry from NVIDIA's stack is known to be
+  sampling-sensitive: an SC'24 study found that on some data-center GPUs **only ~25 % of the runtime is
+  actually sampled**, which can bias energy readings
+  ([Yang et al., *nvidia-smi's Lack of Attention*, arXiv:2312.02741](https://arxiv.org/abs/2312.02741)).
+  Our **conc=32** counter-delta point is **omitted** for exactly this reason — its phase is too short
+  (~60-85 s) for the coarse, stepped energy counter to integrate cleanly; the steady instantaneous-power
+  method (i) is what we report there.
+- **Cross-run reproducibility.** The generation-only conc=32 number reproduces across independent runs
+  (71.9 W ÷ ~415 gen tok/s → **173 J/1k generation-only**, matched by an earlier separate deployment);
+  the prefill-inclusive primary at conc=32 is **154 J/1k**.
+- **Sanity (not exclusion).** Interval power stays within the L4 envelope (~72 W) and J/1k is monotonic
+  in concurrency with idle `NULL`. All six loaded points are physically valid and retained — no points
+  dropped.
 - **In-pipeline cross-check.** `flink/02_detect_anomalies.sql` computes the identical `Δenergy/Δtokens`
   formula and emits the populated KPI live ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz),
   captured during the run). Its per-15 s windows carry the same DCGM-cadence noise as method (ii), so
@@ -114,18 +168,20 @@ Stated plainly, because honest scope is the point:
   prompt and `max_tokens=200` — it exercises the mechanism (batching efficiency, idle waste); it is
   *not* a representative production traffic mix.
 - **Energy-counter cadence.** The DCGM energy counter updates coarsely relative to the bridge sampling,
-  so the counter-delta method (ii) carries ±13 % jitter; the primary method (i) uses the steady
-  instantaneous power reading.
+  so the counter-delta method (ii) runs **~5-20 % above** the primary instantaneous-power method (i)
+  rather than within a tight symmetric band (an earlier draft said "±13 %"; the recomputed,
+  prefill-inclusive frontier shows a systematic positive offset, documented in *Rigor*). The conc=32
+  counter point is omitted as its window is too short for the coarse counter.
 - **The business-impact figures below are an illustrative projection**, not a measured production
   saving — see that section.
-- **Comparative conc=32 has a short window.** In the Mistral-7B comparison run, the bridge stopped
-  ~62 s into the conc=32 phase, so that single point rests on ~62 s (~250 samples) rather than the full
-  ~215 s; the lower-concurrency points and Granite's full sweep are unaffected. The primary
-  (instantaneous-power) method makes it robust, but the n is noted.
-- **The waste detector is a heuristic, characterized honestly.** `WASTE_HIGH_UTIL` fires on high-util /
-  low-useful-throughput windows (e.g. util ~96 % with near-zero useful tokens). On real hardware that is
-  the low-concurrency regime; on the synthetic quickstart it fires on the equivalent high-util/low-token
-  windows. It is a deterministic rule, not a learned model.
+- **Comparative conc=32 has a short window.** Both conc=32 phases are short (Granite ~85 s, Mistral
+  ~62 s after the bridge stopped), so each rests on fewer samples than the ~3.5 min lower-concurrency
+  phases. The primary (instantaneous-power) method keeps them robust, and the counter-delta point is
+  omitted there; the lower-concurrency points are unaffected.
+- **The waste detector is a heuristic, fixed to be prefill-aware.** `WASTE_HIGH_UTIL` now measures
+  **useful** throughput (`prompt_tokens + generation_tokens`) and **guards against prefill-heavy /
+  long-context windows** (it requires the generated fraction to be non-trivial), so a big-prompt /
+  few-output request is *not* mis-flagged as waste. It is a deterministic rule, not a learned model.
 - **Cost note:** running the closed loop required raising the Flink compute pool to `max_cfu = 10` (the
   6th statement needed CFU headroom); CFUs are billed by usage and the environment was torn down
   immediately after capture.
@@ -167,30 +223,30 @@ phases 1→32, same prompt, same `max_tokens=200`, same bridge) against a second
 [`mistralai/Mistral-7B-Instruct-v0.3`](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3)
 (Apache-2.0). Only the model changed.
 
-| Concurrency | Granite-3.3-8B — J/1k | Mistral-7B-v0.3 — J/1k | Mistral throughput | Δ (Mistral vs Granite) |
+| Concurrency | Granite-3.3-8B — J/1k | Mistral-7B-v0.3 — J/1k | Mistral useful tput | Δ (Mistral vs Granite) |
 |---|---|---|---|---|
-| 1  | 4 639 | 3 972 | 17.8 tok/s  | −14 % |
-| 2  | 2 413 | 2 096 | 34.3 tok/s  | −13 % |
-| 4  | 1 221 | 1 056 | 68.1 tok/s  | −14 % |
-| 8  | 611   | 535   | 134.7 tok/s | −12 % |
-| 16 | 311   | 271   | 265.7 tok/s | −13 % |
-| 32 | 173   | 149   | 481.6 tok/s | −14 % |
+| 1  | 4 192 | 3 552 | 19.9 tok/s  | −15 % |
+| 2  | 2 173 | 1 876 | 38.4 tok/s  | −14 % |
+| 4  | 1 089 | 944   | 76.1 tok/s  | −13 % |
+| 8  | 551   | 478   | 150.4 tok/s | −13 % |
+| 16 | 280   | 243   | 296.6 tok/s | −13 % |
+| 32 | 154   | 135   | 531.2 tok/s | −12 % |
 
 ![Efficiency frontier comparison](../../assets/efficiency-frontier-comparison.png)
 
 Honest reading:
 
-- **Mistral-7B-v0.3 is ~12-14 % more energy-efficient per token at every concurrency level** on this L4
-  (e.g. 149 vs 173 J/1k at conc=32). Both models draw the same ~72 W TDP, so the difference is
-  **throughput**: the smaller 7B model sustains more tokens/s (481 vs 415 at conc=32) than the 8B, and
-  `J/1k = power ÷ throughput`.
+- **Mistral-7B-v0.3 is ~12-15 % more energy-efficient per useful token at every concurrency level** on
+  this L4 (e.g. 135 vs 154 J/1k at conc=32). Both models draw the same ~72 W TDP, so the difference is
+  **throughput**: the smaller 7B model sustains more useful tokens/s (531 vs 466 at conc=32) than the
+  8B, and `J/1k = power ÷ useful-throughput`.
 - **This is a model-size effect (7B vs 8B), not an architecture verdict.** The comparison is
   apples-to-apples on *infrastructure* (same GPU, sweep, prompt, pipeline) but the models differ in
   size; a fair "which architecture is more efficient" study would size-match. The point here is that
   the KPI **measures real, model-specific efficiency differences** — exactly what a platform team needs
   to choose and right-size a model.
-- Both frontiers are computed by the same dual-method audit; raw data:
-  [`data/sweep_telemetry_modelb.jsonl.gz`](data/sweep_telemetry_modelb.jsonl.gz) +
+- Both frontiers use the same prefill-inclusive useful-throughput accounting and dual-method audit; raw
+  data: [`data/sweep_telemetry_modelb.jsonl.gz`](data/sweep_telemetry_modelb.jsonl.gz) +
   [`data/sweep_results_modelb.csv`](data/sweep_results_modelb.csv).
 
 ### Closed-loop governance (live)
@@ -199,11 +255,13 @@ The deployed pipeline closes the loop from detection to a remediation recommenda
 Flink SQL:
 
 - **`flink/08_waste_high_util.sql`** — a "utilization-lies" waste detector. It flags windows with
-  **high GPU utilization but low *useful* throughput** (`avg_gpu_util >= 90` and `gen_tokens_win <=
-  1000`, i.e. < ~66 tok/s over the 15 s window) → `gpu_efficiency_waste`. On the measured hardware this
-  is the **low-concurrency regime** (util pinned ~100 % while throughput is a fraction of peak — the
-  exact pattern the frontier exposed); on the synthetic quickstart it fires on the equivalent
-  high-util / low-token windows (e.g. util ~96 % with near-zero useful tokens).
+  **high GPU utilization but low *useful* throughput**, where useful = `prompt_tokens + generation_tokens`
+  (prefill + decode, goodput-style): `avg_gpu_util >= 90` and `useful_tokens_win <= 1000` (< ~66
+  useful tok/s over the 15 s window) → `gpu_efficiency_waste`. It also **guards against prefill-heavy /
+  long-context windows** (requires generation ≥ 30 % of useful work), so a big-prompt / few-output
+  request is not mis-flagged as waste. On the measured hardware the trigger is the **low-concurrency
+  regime** (util pinned ~100 % while useful throughput is a fraction of peak — the exact pattern the
+  frontier exposed).
 - **`flink/09_remediation.sql`** — a **rule-based** remediation recommender (deterministic `CASE`
   rules, **no LLM** — a reference aligned with the Confluent *Streaming Agents* pattern). It consumes
   the governed signals (idle/saturation alerts + high-util waste) and emits, per deployment, a
@@ -228,7 +286,8 @@ forecast→capacity→S3, and a raw-archive S3 sink. CLI evidence (Schema Regist
 
 GPU inference is among the most expensive line items in an AI platform, and a large share is spent on
 GPUs that are **allocated but idle or under-batched** — exactly what this run reproduced (idle drawing
-26.3 W for zero useful output; low-concurrency costing 7× the energy per token).
+~34.9 W for zero useful output; under-batched conc=1 costing ~27× the energy per useful token vs peak
+batching).
 
 A g2-standard-8 (1× L4) is **≈ $0.85/hr on-demand ≈ $623/GPU/month**
 ([GCP Compute pricing](https://cloud.google.com/products/compute/gpus-pricing); corroborated by public
@@ -245,18 +304,18 @@ This reframes the project from *monitoring* to **real-time GPU cost governance**
 capacity-risk branch flags `PREDICTED_IDLE` *before* the waste is incurred (cost → faster
 right-sizing), and the `SATURATION` alerts protect customer experience under load.
 
-**Measured unit economics** (price × *measured* throughput — this part is measured, not projected). At
-the same $0.8508/hr node, cost-per-useful-work mirrors the energy frontier:
+**Measured unit economics** (price × *measured* useful throughput — this part is measured, not
+projected). At the same $0.8508/hr node, cost-per-useful-work mirrors the energy frontier:
 
 | | Granite-3.3-8B (peak) | Mistral-7B-v0.3 (peak) |
 |---|---|---|
-| Throughput | 415 tok/s | 481.6 tok/s |
-| **$ / 1M tokens (at peak batching)** | **≈ $0.57** | **≈ $0.49** |
-| $ / 1M tokens (conc=1, under-batched) | ≈ $15.3 | ≈ $13.3 |
+| Useful throughput | 466 tok/s | 531 tok/s |
+| **$ / 1M useful tokens (peak batching)** | **≈ $0.51** | **≈ $0.44** |
+| $ / 1M useful tokens (conc=1, under-batched) | ≈ $13.7 | ≈ $11.9 |
 
 So the same dollar buys ~**27× more useful tokens** at peak batching than under-batched — the cost
-frontier *is* the energy frontier. (Per-1M-token figures = `price_per_hr / (tok/s × 3600) × 1e6`; the
-notebook recomputes them from the committed data.)
+frontier *is* the energy frontier. (Per-1M-token figures = `price_per_hr / (useful_tok/s × 3600) × 1e6`;
+`recompute_frontier.py` + the notebook regenerate them from the committed data.)
 
 **Confluent-native & time-to-market.** The entire governance layer is **Flink SQL deployed in minutes**
 (`uv run deploy`) — ARIMA/STL detection and forecasting run **in the data plane**, with **no separate
@@ -275,7 +334,7 @@ alerting + an action tier.
 | GPU | NVIDIA L4 24 GB, `GPU-2e9a88f9-0e65-771b-d391-e09984261540`, driver 580.159.03 |
 | Host | GCE `g2-standard-8`, us-central1-c |
 | Telemetry | NVIDIA DCGM exporter 3.3.5 + vLLM Prometheus `/metrics`, bridged 1/s |
-| Pipeline | Confluent Cloud for Apache Flink — `flink/02,03,05,07` |
+| Pipeline | Confluent Cloud for Apache Flink — `flink/02,03,05,07,08,09` |
 | Captured | 2026-06-15 |
 | Raw data | [`data/sweep_telemetry_raw.jsonl.gz`](data/sweep_telemetry_raw.jsonl.gz) (5 356 records) · [`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz) · [`data/sweep_results.csv`](data/sweep_results.csv) |
 
@@ -303,6 +362,10 @@ with where the platform is heading:
 - **Closed-loop actuation with guardrails** — connect remediation recommendations to an actuator
   (e.g., scale-to-zero / autoscaler) via a Streaming Agent, moving from *recommend* to *act* behind
   human-approval or policy guardrails.
+- **Maturity & cost hardening** — the built-in Flink ML functions (`ML_DETECT_ANOMALIES`,
+  `ML_FORECAST`) are relatively recent; a production rollout should pin their SLA/version expectations
+  and budget the **CFU cost** of the full loop (this 6-statement pipeline needs `max_cfu = 10`),
+  trading detector richness against compute-pool spend.
 
 *Built by **Lutflow** — real-time AI infrastructure governance. [lutflow.dev](https://lutflow.dev)*
 
