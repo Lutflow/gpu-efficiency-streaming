@@ -107,6 +107,12 @@ per deployment, over schema-governed streams, with a real-time action loop** —
 benchmark or a periodic FinOps batch. The finding and the metric are not ours; the streaming-governance
 pattern is what we demonstrate.
 
+> **Engaging the prior art on our own data:** [`metrics_cross_check.ipynb`](metrics_cross_check.ipynb)
+> *implements* MFU, MBU, TTFT-goodput and energy-per-token on our measured `.gz` and shows the same
+> qualitative result (single-digit MFU, ~70–85 % MBU → memory-bandwidth bound). It does **not** compare
+> our numbers to any paper's (different hardware/workload); constants (L4 dense FP16 = 121 TFLOP/s,
+> 300 GB/s; `2·N` FLOPs/token) are cited from the NVIDIA L4 datasheet and model cards.
+
 ## Limitations
 
 - Single NVIDIA L4, single model family (`granite-3.3-8b-instruct` FP16; Mistral-7B-v0.3 FP16),

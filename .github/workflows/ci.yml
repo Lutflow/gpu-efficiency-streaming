@@ -37,6 +37,12 @@ jobs:
           uv run --with "jupyter,nbconvert,ipykernel,pandas,matplotlib,nbformat" \
             jupyter nbconvert --to notebook --execute \
             --output /tmp/analysis-ci-output.ipynb analysis.ipynb
+      - name: Execute the metrics cross-check notebook (reproducibility check)
+        # Runs from repo root; the notebook locates case-study data/ by walking up from cwd.
+        run: |
+          uv run --with "jupyter,nbconvert,ipykernel,pandas,matplotlib,nbformat" \
+            jupyter nbconvert --to notebook --execute \
+            --output /tmp/xcheck-ci-output.ipynb research/metrics_cross_check.ipynb
 
   terraform:
     name: Terraform (fmt + validate)
