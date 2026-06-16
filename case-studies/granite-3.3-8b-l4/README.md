@@ -89,7 +89,8 @@ counts `prompt_tokens + generation_tokens`** (prefill + decode), not generation 
 tokens the GPU actually processed, the standard *goodput*-style accounting (see *Related work*). We
 swept **fixed concurrency 1 → 32** (each level held ≥ 3.5 min) and measured the KPI two independent
 ways (see *Rigor*). The frontier is **recomputed offline** by
-[`recompute_frontier.py`](recompute_frontier.py) from the committed raw telemetry:
+[`recompute_frontier.py`](recompute_frontier.py) from the committed raw telemetry (full method +
+prior-art citations in [`research/METHODOLOGY.md`](../../research/METHODOLOGY.md)):
 
 | Concurrency | GPU util | GPU power | Useful throughput | **J/1k (power÷tput)** | J/1k (ΔE÷Δtok) |
 |---|---|---|---|---|---|
