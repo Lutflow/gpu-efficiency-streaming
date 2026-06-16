@@ -9,12 +9,14 @@ the energy-per-useful-work signal into **GPU cost governance** — using 100% Co
 **producer/bridge → Flink (`TUMBLE` + `ML_DETECT_ANOMALIES`, ARIMA/STL, plus `ML_FORECAST`) → Amazon
 S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 
-> **📊 Measured case study:** this pipeline was run against a **real IBM Granite 3.3-8B Instruct
-> deployment on a real NVIDIA L4** (vLLM + NVIDIA DCGM, 100% real telemetry). Measured **efficiency
-> frontier** across a concurrency sweep: **173 J/1k tokens at concurrency 32, rising ~27× to 4 639 at
-> concurrency 1, and `NULL` (maximum waste) at idle** — see
-> [`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/) (raw data + plot + reproduction
-> included). The synthetic producer below is the **reproducible quickstart (no GPU required)**.
+> **📊 Measured case study:** real **IBM Granite-3.3-8B on a real NVIDIA L4** (vLLM + NVIDIA DCGM,
+> 100% real telemetry). **At ~100% GPU utilization throughout, energy/cost-per-useful-token still
+> varied ~27× across batching regimes** — 173 J/1k @ concurrency 32 → 4 639 @ concurrency 1, and
+> `NULL` (infinite cost-per-work) at idle. **Why it matters:** at ~$0.85/GPU-hr, a 10×L4 fleet running
+> ~30% idle/under-batched wastes **≈ $1.9k/month** (illustrative); this pipeline flags it in **~8 min**
+> (the next Flink window) — not the next daily FinOps batch. See
+> [`case-studies/granite-3.3-8b-l4/`](case-studies/granite-3.3-8b-l4/) (raw data + plot + reproduction).
+> The synthetic producer below is the **reproducible quickstart (no GPU required)**.
 
 **📓 Technical + business lab notebook:** [`case-studies/granite-3.3-8b-l4/analysis.ipynb`](case-studies/granite-3.3-8b-l4/analysis.ipynb)
 — the full analysis (efficiency frontier, dual-method power cross-check, cost model) rendered with
@@ -76,6 +78,12 @@ low *useful* throughput) joins the idle/saturation alerts, and a **rule-based re
 (`09`, no LLM) turns them into a `recommended_action` per deployment — see the live walkthrough in
 [`pipeline/PIPELINE.md`](pipeline/PIPELINE.md) and the measured
 [case study](case-studies/granite-3.3-8b-l4/README.md).
+
+![Stream Lineage (live) — the closed governance loop on Confluent Cloud](pipeline/1-lineage.png)
+
+*Live **Stream Lineage** from the run: `gpu_telemetry` fans out to detect / forecast / waste and
+closes into remediation, every branch landing in Amazon S3. Component-by-component walkthrough in
+[`pipeline/PIPELINE.md`](pipeline/PIPELINE.md).*
 
 ## Agent-ready
 

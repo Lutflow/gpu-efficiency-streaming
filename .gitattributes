@@ -1,0 +1,5 @@
+# Keep GitHub's language bar focused on the pipeline, not the analysis notebook / generated assets.
+*.ipynb linguist-documentation
+case-studies/**/data/** linguist-generated
+pipeline/*.png linguist-generated
+assets/*.png linguist-generated
