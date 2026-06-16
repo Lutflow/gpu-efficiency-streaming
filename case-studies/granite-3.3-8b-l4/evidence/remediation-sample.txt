@@ -1,0 +1,8 @@
+# gpu_remediation — live rule-based remediation recommendations (Confluent Cloud, captured live)
+# Reference-aligned with Confluent Streaming Agents (deterministic CASE rules, no LLM).
+# est_reclaimable_usd_per_mo is an ILLUSTRATIVE projection (g2-standard-8 ~$621/GPU/mo x fraction).
+# NOTE: deployment_id is the Kafka message KEY (DISTRIBUTED BY deployment_id) = 'inference-node-a';
+#       it is therefore null in the value payload shown below. The value carries the recommendation.
+
+{"deployment_id": null, "window_start": "2026-06-16T01:38:00-04:00", "condition": "SATURATION", "recommended_action": "Scale out or rate-limit: GPU saturated, latency at risk", "est_reclaimable_usd_per_mo": 0}
+{"deployment_id": null, "window_start": "2026-06-16T01:29:45-04:00", "condition": "WASTE_HIGH_UTIL", "recommended_action": "Raise batch concurrency or right-size the model: high util, low useful throughput", "est_reclaimable_usd_per_mo": 155.25}

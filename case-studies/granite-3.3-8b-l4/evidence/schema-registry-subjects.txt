@@ -1,0 +1,11 @@
+# Schema Registry subjects (Confluent Cloud) — captured live during the comparative run
+# Governed Avro contract; gpu_telemetry-value is the source schema.
+  gpu_efficiency_alerts-key           
+  gpu_efficiency_alerts-value         
+  gpu_efficiency_anomalies-key        
+  gpu_efficiency_anomalies-value      
+  gpu_efficiency_capacity_risk-key    
+  gpu_efficiency_capacity_risk-value  
+  gpu_efficiency_forecast-key         
+  gpu_efficiency_forecast-value       
+  gpu_telemetry-value                 

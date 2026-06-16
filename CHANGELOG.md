@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-15
+
+Comparative study + live-pipeline evidence.
+
+### Added
+
+- **Comparative efficiency frontier** on the *same* NVIDIA L4: IBM Granite-3.3-8B vs
+  **Mistral-7B-Instruct-v0.3** (identical sweep, prompt, pipeline). Mistral-7B is ~12-14% lower J/1k at
+  every concurrency (same ~72 W TDP, higher throughput — a 7B-vs-8B size effect). Overlay plot
+  (`assets/efficiency-frontier-comparison.png`), comparison table + honest interpretation in the case
+  study, notebook comparison cells, and the self-consistent raw data
+  (`data/sweep_telemetry_modelb.jsonl.gz`, `data/sweep_results_modelb.csv`).
+- **Live Confluent Cloud evidence** captured during the run: Schema Registry `BACKWARD` compatibility,
+  the governed `gpu_telemetry-value` subject, and topic config in `case-studies/.../evidence/`, plus
+  Stream Lineage / Schema Registry / consumption screenshots.
+
 ## [0.2.0] - 2026-06-15
 
 Measured case study + real-source bridge. Reframed from monitoring to **GPU cost governance**.
@@ -54,5 +70,6 @@ Initial release — real-time GPU efficiency anomaly detection and forecasting o
   exploration, documented honestly and **not deployed** (Flink determinism constraint over changelog
   streams).
 
+[0.3.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.1.0

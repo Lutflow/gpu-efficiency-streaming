@@ -45,7 +45,7 @@ resource "confluent_flink_compute_pool" "demo" {
   display_name = "gpu-efficiency-pool"
   cloud        = var.cloud_provider
   region       = var.region
-  max_cfu      = 5
+  max_cfu      = 10
 
   environment {
     id = confluent_environment.demo.id
@@ -78,6 +78,8 @@ locals {
     "gpu_efficiency_alerts",        # Flink CTAS output (alert rule)
     "gpu_efficiency_forecast",      # Flink CTAS output (forecast)
     "gpu_efficiency_capacity_risk", # Flink CTAS output (predicted idle)
+    "gpu_efficiency_waste",         # Flink CTAS output (utilization-lies waste detector)
+    "gpu_remediation",              # Flink CTAS output (rule-based remediation recommender)
   ]
   # ResourceOwner scoped to each specific pipeline topic: covers create/alter/produce/consume
   # (Flink's ALTER TABLE needs ownership of the underlying topic). Still least-privilege --
@@ -108,6 +110,8 @@ resource "confluent_role_binding" "app_subject" {
     "gpu_efficiency_alerts-value", "gpu_efficiency_alerts-key",
     "gpu_efficiency_forecast-value", "gpu_efficiency_forecast-key",
     "gpu_efficiency_capacity_risk-value", "gpu_efficiency_capacity_risk-key",
+    "gpu_efficiency_waste-value", "gpu_efficiency_waste-key",
+    "gpu_remediation-value", "gpu_remediation-key",
   ])
 
   principal   = "User:${confluent_service_account.app.id}"

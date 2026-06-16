@@ -20,6 +20,14 @@ S3**, governed by **Schema Registry** and visualized in **Stream Lineage**.
 — the full analysis (efficiency frontier, dual-method power cross-check, cost model) rendered with
 outputs, reproducible offline from the committed data.
 
+**🔬 Comparative study:** the same L4 sweep was also run on **Mistral-7B-Instruct-v0.3** — see the
+[comparison](case-studies/granite-3.3-8b-l4/#comparison--granite-33-8b-vs-mistral-7b-instruct-v03-on-the-same-l4)
+(Mistral-7B ~12-14% lower J/1k; smaller model → higher throughput at the same ~72 W).
+
+**📐 Pipeline walkthrough:** [`pipeline/PIPELINE.md`](pipeline/PIPELINE.md) — a component-by-component
+tour with **live screenshots** (Stream Lineage closed loop, each Flink statement, the S3 connector,
+remediation output, Schema Registry `BACKWARD`).
+
 The anomaly-detection and forecasting models run *inside* Flink SQL — there is no separate
 model-serving infrastructure to operate.
 
@@ -186,6 +194,8 @@ flink/                          # the SQL pipeline (single source of truth)
   03_alerts.sql                 #   IDLE_WASTE / SATURATION business rule
   05_forecast.sql               #   ML_FORECAST — predict the efficiency trend
   07_capacity_risk.sql          #   PREDICTED_IDLE from the forecast (next window)
+  08_waste_high_util.sql        #   "utilization-lies" waste detector (high util, low useful throughput)
+  09_remediation.sql            #   rule-based remediation recommender (closes the loop; no LLM)
 terraform/                      # all infrastructure + sinks + Flink statements
 experimental/                   # NOT deployed: an AI_COMPLETE (Gemini) remediation exploration
 examples/                       # real captured ML output (examples/sample-output.md)

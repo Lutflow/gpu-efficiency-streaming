@@ -1,0 +1,7 @@
+# Kafka topic describe: gpu_telemetry (Confluent Cloud) — captured live
++--------------------+---------------+
+| Name               | gpu_telemetry |
+| Internal           | false         |
+| Replication Factor | 3             |
+| Partition Count    | 1             |
++--------------------+---------------+

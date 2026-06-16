@@ -163,3 +163,41 @@ resource "confluent_flink_statement" "capacity_risk" {
 
   depends_on = [confluent_flink_statement.forecast]
 }
+
+resource "confluent_flink_statement" "waste_high_util" {
+  organization { id = data.confluent_organization.main.id }
+  environment { id = confluent_environment.demo.id }
+  compute_pool { id = confluent_flink_compute_pool.demo.id }
+  principal { id = confluent_service_account.app.id }
+
+  statement_name = "gpu-efficiency-08-waste-high-util"
+  statement      = file("${path.module}/../flink/08_waste_high_util.sql")
+  properties     = local.flink_properties
+  rest_endpoint  = data.confluent_flink_region.demo.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.app_flink.id
+    secret = confluent_api_key.app_flink.secret
+  }
+
+  depends_on = [confluent_flink_statement.detect_anomalies]
+}
+
+resource "confluent_flink_statement" "remediation" {
+  organization { id = data.confluent_organization.main.id }
+  environment { id = confluent_environment.demo.id }
+  compute_pool { id = confluent_flink_compute_pool.demo.id }
+  principal { id = confluent_service_account.app.id }
+
+  statement_name = "gpu-efficiency-09-remediation"
+  statement      = file("${path.module}/../flink/09_remediation.sql")
+  properties     = local.flink_properties
+  rest_endpoint  = data.confluent_flink_region.demo.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.app_flink.id
+    secret = confluent_api_key.app_flink.secret
+  }
+
+  depends_on = [confluent_flink_statement.alerts, confluent_flink_statement.waste_high_util]
+}
