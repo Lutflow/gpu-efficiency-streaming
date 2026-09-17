@@ -1,5 +1,17 @@
 # Sample output
 
+> ⚠️ **Denominator note (2026-09-17).** The `gpu_efficiency_anomalies` rows below were **captured with
+> the earlier generation-only KPI denominator** — `joules_per_1k_tokens` here divides energy by
+> `gen_tokens_win` alone. `flink/02_detect_anomalies.sql` has since been corrected to divide by useful
+> tokens (`prompt_tokens_win + gen_tokens_win`, i.e. prefill + decode), matching the published frontier;
+> see `CHANGELOG` (Unreleased). These captured rows are **retained unchanged as historical output** and
+> are **not** recomputed — they cannot be regenerated without the per-window prefill counts, which this
+> capture did not record. Any J/1k value below therefore reflects the old generation-only denominator
+> and reads **higher** than the corrected useful-token KPI. The published ~27× frontier is an offline
+> recompute from raw telemetry and is unaffected.
+
+The scope and provenance of the run itself:
+
 > **REAL hardware results** (IBM Granite 3.3-8B on a real NVIDIA L4, vLLM + DCGM, 100% real telemetry)
 > live in the [measured case study](../case-studies/granite-3.3-8b-l4/) with the raw JSONL attached.
 > Measured efficiency frontier (concurrency sweep): **173 J/1k @ conc 32 · 311 @ 16 · 611 @ 8 · 4 639
@@ -48,9 +60,11 @@ idle threshold raises `PREDICTED_IDLE` **before** the waste happens.
 
 ## `gpu_efficiency_anomalies` — energy-efficiency KPI
 
-The headline KPI `joules_per_1k_tokens` (DCGM energy per 1,000 useful generated tokens) lives here,
+The headline KPI `joules_per_1k_tokens` (DCGM energy per 1,000 tokens — see the denominator note at the
+top: these captured rows use the **historical generation-only** denominator; the corrected SQL divides
+by useful tokens = prompt + generation) lives here,
 computed per window from the energy and token counter deltas. It is the project's differentiator: a
-**cost-per-useful-work** unit, not just a utilization gauge. Real rows:
+**cost-per-useful-work** unit, not just a utilization gauge. Captured rows:
 
 ```json
 {"window_start": "2026-06-15T18:03:30-04:00", "avg_gpu_util": 7.0,  "gen_tokens_win": 0,    "joules_per_1k_tokens": null}
