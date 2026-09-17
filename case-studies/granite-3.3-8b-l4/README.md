@@ -152,10 +152,17 @@ How to read it:
 - **Sanity (not exclusion).** Interval power stays within the L4 envelope (~72 W) and J/1k is monotonic
   in concurrency with idle `NULL`. All six loaded points are physically valid and retained — no points
   dropped.
-- **In-pipeline cross-check.** `flink/02_detect_anomalies.sql` computes the identical `Δenergy/Δtokens`
-  formula and emits the populated KPI live ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz),
-  captured during the run). Its per-15 s windows carry the same DCGM-cadence noise as method (ii), so
-  the published frontier uses the steadier method (i) over the retained raw topic.
+- **In-pipeline cross-check.** `flink/02_detect_anomalies.sql` computes an in-data-plane
+  `Δenergy/Δtokens` KPI over the same useful-token denominator as the published frontier
+  (`useful = prompt_tokens + generation_tokens`; fixed 2026-09-17 — the SQL previously divided by
+  generation tokens alone, which under-counts the denominator and inflates J/1k). The **published
+  frontier is an offline recompute** from the raw telemetry topic via `recompute_frontier.py`, not the
+  Flink capture. The captured snapshot
+  ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz)) was emitted by the
+  **earlier generation-only denominator** and is retained unchanged as historical evidence (see the
+  note in that file's directory and CHANGELOG 0.4.1). Its per-15 s windows also carry the same
+  DCGM-cadence noise as method (ii), so the published frontier uses the steadier method (i) over the
+  retained raw topic.
 
 ## Limitations
 

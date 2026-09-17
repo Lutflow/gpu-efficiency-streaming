@@ -5,6 +5,33 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-09-17
+
+In-pipeline KPI denominator corrected to match the published useful-token frontier. **No headline
+change** — the ~27× batching span and the 4 192 → 154 J/1k frontier are an offline recompute from raw
+telemetry and were never derived from the Flink capture.
+
+### Fixed
+
+- **In-pipeline KPI now divides by useful tokens.** `flink/02_detect_anomalies.sql` computed the
+  windowed prefill delta (`prompt_tokens_win`) but its `joules_per_1k_tokens` KPI divided DCGM energy
+  by **generation tokens alone** (`gen_tokens_win`). Useful work is prefill + decode, so the KPI now
+  divides by `(prompt_tokens_win + gen_tokens_win)`, matching `recompute_frontier.py` and the published
+  frontier. A generation-only denominator under-counts and inflates J/1k.
+- **README cross-check claim corrected.** The case-study README previously called the Flink KPI the
+  "identical" `Δenergy/Δtokens` formula as the published frontier. That was false: the published
+  frontier is an offline recompute from the raw topic, and the Flink capture used the old
+  generation-only denominator. The bullet now states this accurately.
+
+### Added
+
+- **Regression guard.** `tests/test_flink_kpi_denominator.py` parses the KPI expression out of the SQL
+  and fails if the denominator reverts to generation-only (mutation-verified).
+- **Snapshot provenance note.** `case-studies/granite-3.3-8b-l4/data/README.md` labels
+  `anomalies_inpipeline.jsonl.gz` as a **generation-only** historical capture, pinned by SHA-256 and
+  **preserved unchanged** (not recomputed to match the corrected SQL). Historical evidence is annotated,
+  not rewritten.
+
 ## [0.4.0] - 2026-06-16
 
 Correctness hardening + honest positioning. **No floor regression** — additive to the measured study.
