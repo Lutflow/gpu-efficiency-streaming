@@ -39,7 +39,8 @@ def kpi_denominator(sql_text: str) -> str:
     # Collapse whitespace so the regex is newline-insensitive.
     flat = re.sub(r"\s+", " ", sql_text)
     m = re.search(
-        r"energy_joules_win\s*/\s*NULLIF\(\s*CAST\(\s*(?P<denom>.+?)\s+AS\s+DOUBLE\s*\)\s*,\s*0\.0\s*\)"
+        r"energy_joules_win\s*/\s*NULLIF\(\s*CAST\(\s*(?P<denom>.+?)\s+AS\s+DOUBLE\s*\)"
+        r"\s*,\s*0\.0\s*\)"
         r"\s*\*\s*1000\.0\s+AS\s+joules_per_1k_tokens",
         flat,
         flags=re.IGNORECASE,

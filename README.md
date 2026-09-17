@@ -44,9 +44,9 @@ moment it appears in the telemetry stream, and lands an actionable anomaly recor
 data lake or downstream consumers.
 
 The efficiency KPI it emits — `joules_per_1k_tokens`, an energy-per-useful-work unit computed from a
-DCGM-style energy counter divided by generated tokens — is the kind of unit a platform team can put a
-dollar figure on. (In this demo the telemetry is a structured synthetic signal, not measured hardware
-— see *What's synthetic* below.)
+DCGM-style energy counter divided by useful tokens (prompt + generation, i.e. prefill + decode) — is
+the kind of unit a platform team can put a dollar figure on. (In this demo the telemetry is a
+structured synthetic signal, not measured hardware — see *What's synthetic* below.)
 
 ## Architecture
 

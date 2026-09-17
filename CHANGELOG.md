@@ -5,11 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.1] - 2026-09-17
+## [Unreleased]
 
 In-pipeline KPI denominator corrected to match the published useful-token frontier. **No headline
 change** — the ~27× batching span and the 4 192 → 154 J/1k frontier are an offline recompute from raw
-telemetry and were never derived from the Flink capture.
+telemetry and were never derived from the Flink capture. Not a release cut: `pyproject.toml` stays at
+0.4.0 and no tag is created; this entry is renamed and dated when 0.4.1 is actually cut.
 
 ### Fixed
 
@@ -22,6 +23,10 @@ telemetry and were never derived from the Flink capture.
   "identical" `Δenergy/Δtokens` formula as the published frontier. That was false: the published
   frontier is an offline recompute from the raw topic, and the Flink capture used the old
   generation-only denominator. The bullet now states this accurately.
+- **Root README KPI definition corrected.** `README.md` described `joules_per_1k_tokens` as
+  "energy … divided by generated tokens" in the same sentence that called it energy-per-useful-work —
+  contradictory before the change and false after it. Now reads "divided by useful tokens (prompt +
+  generation, i.e. prefill + decode)".
 
 ### Added
 
@@ -31,6 +36,9 @@ telemetry and were never derived from the Flink capture.
   `anomalies_inpipeline.jsonl.gz` as a **generation-only** historical capture, pinned by SHA-256 and
   **preserved unchanged** (not recomputed to match the corrected SQL). Historical evidence is annotated,
   not rewritten.
+- **Sample-output provenance note.** `examples/sample-output.md` now carries a dated banner labeling its
+  `gpu_efficiency_anomalies` rows as captured with the **generation-only** denominator; the rows are
+  retained unchanged (they cannot be recomputed — the capture recorded no per-window prefill counts).
 
 ## [0.4.0] - 2026-06-16
 
@@ -128,6 +136,7 @@ Initial release — real-time GPU efficiency anomaly detection and forecasting o
   exploration, documented honestly and **not deployed** (Flink determinism constraint over changelog
   streams).
 
+[Unreleased]: https://github.com/Lutflow/gpu-efficiency-streaming/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.2.0
