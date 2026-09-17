@@ -10,7 +10,7 @@ This directory holds the raw and derived artifacts for the Granite-3.3-8B / L4 c
   `flink/02_detect_anomalies.sql`, whose `joules_per_1k_tokens` KPI divided DCGM energy by
   **generation tokens alone** (`gen_tokens_win`). That was a defect: useful work is
   prefill + decode (`prompt_tokens + generation_tokens`), matching the published frontier. The SQL
-  was corrected on **2026-09-17** to divide by the useful-token denominator (see CHANGELOG 0.4.1);
+  was corrected on **2026-09-17** to divide by the useful-token denominator (see CHANGELOG (Unreleased));
   this snapshot predates that fix.
 - **Preserved, not recomputed.** This file is retained **byte-for-byte as captured**. It is historical
   evidence and is **not** rewritten, recalculated, or regenerated to match the corrected SQL. Any J/1k

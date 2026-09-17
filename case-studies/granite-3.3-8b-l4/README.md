@@ -160,7 +160,7 @@ How to read it:
   Flink capture. The captured snapshot
   ([`data/anomalies_inpipeline.jsonl.gz`](data/anomalies_inpipeline.jsonl.gz)) was emitted by the
   **earlier generation-only denominator** and is retained unchanged as historical evidence (see the
-  note in that file's directory and CHANGELOG 0.4.1). Its per-15 s windows also carry the same
+  note in that file's directory and CHANGELOG (Unreleased)). Its per-15 s windows also carry the same
   DCGM-cadence noise as method (ii), so the published frontier uses the steadier method (i) over the
   retained raw topic.
 
