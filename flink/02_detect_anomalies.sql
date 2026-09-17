@@ -43,9 +43,13 @@ SELECT
   avg_gpu_util,
   gen_tokens_win,
   prompt_tokens_win,
-  -- Energy-efficiency KPI: DCGM energy (joules) per 1k useful generated tokens.
+  -- Energy-efficiency KPI: DCGM energy (joules) per 1k USEFUL tokens.
+  -- Useful work = prefill (prompt) + decode (generation), goodput-style accounting -- the same
+  -- definition used by the published frontier (recompute_frontier.py). Dividing by generation
+  -- alone was a defect: it under-counts the denominator and inflates J/1k above the useful-token KPI.
   -- DOUBLE throughout so the division never hits DECIMAL precision overflow (which emits NULL).
-  energy_joules_win / NULLIF(CAST(gen_tokens_win AS DOUBLE), 0.0) * 1000.0   AS joules_per_1k_tokens,
+  energy_joules_win
+    / NULLIF(CAST(prompt_tokens_win + gen_tokens_win AS DOUBLE), 0.0) * 1000.0   AS joules_per_1k_tokens,
   ML_DETECT_ANOMALIES(
     avg_gpu_util,                 -- monitored value (compute efficiency)
     window_time,                  -- timestamp

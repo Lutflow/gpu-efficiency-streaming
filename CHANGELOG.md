@@ -5,6 +5,41 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+In-pipeline KPI denominator corrected to match the published useful-token frontier. **No headline
+change** — the ~27× batching span and the 4 192 → 154 J/1k frontier are an offline recompute from raw
+telemetry and were never derived from the Flink capture. Not a release cut: `pyproject.toml` stays at
+0.4.0 and no tag is created; this entry is renamed and dated when 0.4.1 is actually cut.
+
+### Fixed
+
+- **In-pipeline KPI now divides by useful tokens.** `flink/02_detect_anomalies.sql` computed the
+  windowed prefill delta (`prompt_tokens_win`) but its `joules_per_1k_tokens` KPI divided DCGM energy
+  by **generation tokens alone** (`gen_tokens_win`). Useful work is prefill + decode, so the KPI now
+  divides by `(prompt_tokens_win + gen_tokens_win)`, matching `recompute_frontier.py` and the published
+  frontier. A generation-only denominator under-counts and inflates J/1k.
+- **README cross-check claim corrected.** The case-study README previously called the Flink KPI the
+  "identical" `Δenergy/Δtokens` formula as the published frontier. That was false: the published
+  frontier is an offline recompute from the raw topic, and the Flink capture used the old
+  generation-only denominator. The bullet now states this accurately.
+- **Root README KPI definition corrected.** `README.md` described `joules_per_1k_tokens` as
+  "energy … divided by generated tokens" in the same sentence that called it energy-per-useful-work —
+  contradictory before the change and false after it. Now reads "divided by useful tokens (prompt +
+  generation, i.e. prefill + decode)".
+
+### Added
+
+- **Regression guard.** `tests/test_flink_kpi_denominator.py` parses the KPI expression out of the SQL
+  and fails if the denominator reverts to generation-only (mutation-verified).
+- **Snapshot provenance note.** `case-studies/granite-3.3-8b-l4/data/README.md` labels
+  `anomalies_inpipeline.jsonl.gz` as a **generation-only** historical capture, pinned by SHA-256 and
+  **preserved unchanged** (not recomputed to match the corrected SQL). Historical evidence is annotated,
+  not rewritten.
+- **Sample-output provenance note.** `examples/sample-output.md` now carries a dated banner labeling its
+  `gpu_efficiency_anomalies` rows as captured with the **generation-only** denominator; the rows are
+  retained unchanged (they cannot be recomputed — the capture recorded no per-window prefill counts).
+
 ## [0.4.0] - 2026-06-16
 
 Correctness hardening + honest positioning. **No floor regression** — additive to the measured study.
@@ -101,6 +136,7 @@ Initial release — real-time GPU efficiency anomaly detection and forecasting o
   exploration, documented honestly and **not deployed** (Flink determinism constraint over changelog
   streams).
 
+[Unreleased]: https://github.com/Lutflow/gpu-efficiency-streaming/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Lutflow/gpu-efficiency-streaming/releases/tag/v0.2.0
