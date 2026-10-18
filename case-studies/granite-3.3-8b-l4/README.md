@@ -339,7 +339,7 @@ alerting + an action tier.
 | Model | `RedHatAI/granite-3.3-8b-instruct` (IBM Granite 3.3-8B Instruct, Red Hat AI distribution) |
 | Quantization | FP16 (BF16 weights; FP8 not published for 3.3 at capture time) |
 | Server | `vllm/vllm-openai:latest` (pulled 2026-06-15), OpenAI-compatible, `--max-model-len 4096` |
-| GPU | NVIDIA L4 24 GB, `GPU-2e9a88f9-0e65-771b-d391-e09984261540`, driver 580.159.03 |
+| GPU | NVIDIA L4 24 GB (device UUID omitted), driver 580.159.03 |
 | Host | GCE `g2-standard-8`, us-central1-c |
 | Telemetry | NVIDIA DCGM exporter 3.3.5 + vLLM Prometheus `/metrics`, bridged 1/s |
 | Pipeline | Confluent Cloud for Apache Flink — `flink/02,03,05,07,08,09` |
